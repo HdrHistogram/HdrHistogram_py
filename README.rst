@@ -41,12 +41,15 @@ Given that each instance of wrk can generate a separate histogram, assessing
 the scale of the entire system requires aggregating all these histograms
 into 1 in a way that does not impact the accuracy of the results.
 So there are 2 problems to solve:
+
 - find a way to properly aggregate multiple histograms without losing any detail
+
 - find a way to transport all these histograms into a central place
 
 This library only provides a solution for the aggregation part of the problem:
-- propose a format describing what histogram information needs to be sent
-  to the aggregator
+
+- propose a format describing what histogram information needs to be sent to the aggregator
+
 - provide python APIs to properly aggregate all these histograms into 1
 
 
@@ -61,8 +64,10 @@ Testing
 -------
 
 You need tox to be installed.
-Just run tox from the repository top folder to execute
+Just run tox from the repository top folder to execute:
+
 - flake8 for syntax and indentation checking
+
 - the python unit test code
 
 
@@ -75,7 +80,17 @@ likely not available in this python port.
 Licensing
 ---------
 
-Licensed under Apache License 2.0
+This code is licensed under Apache License 2.0.
+The original implementation in Java (https://github.com/giltene/wrk2.git) is licensed under CCO 1.0 (http://creativecommons.org/publicdomain/zero/1.0/)
+
+Contribution
+------------
+External contribution and forks are welcome.
+
+Changes can be contributed back using preferably GerritHub (https://review.gerrithub.io/#/q/project:ahothan/hdrhistogram)
+
+GitHub pull requests can also be considered.
+
 
 Links
 -----
