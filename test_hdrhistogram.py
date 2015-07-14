@@ -84,17 +84,21 @@ def test_percentiles():
 # to be used as a reference
 # that the python implementation of HdrHistogram must match for percentile
 # values when latency buckets are imported
-
+# Wrk2 uses usec units from 1 to 24 hours
 IMPORTED_MAX_LATENCY = 24 * 60 * 60 * 1000000
 IMPORTED_LATENCY_DATA0 = {
     "buckets": 27, "sub_buckets": 2048, "digits": 3,
     "max_latency": IMPORTED_MAX_LATENCY,
+    "min": 89151,
+    "max": 209664,
     "counters": [
         6, [1295, 1, 1392, 1, 1432, 1, 1435, 1, 1489, 1, 1493, 1, 1536, 1, 1553, 1,
             1560, 1, 1574, 1, 1591, 1, 1615, 1, 1672, 1, 1706, 1, 1738, 1, 1812, 1,
             1896, 1],
         7, [1559, 1, 1590, 1, 1638, 1]],
+
     # pairs of value in ms and percentile
+    # this is only present/used for UT to verify that the output is correct
     "value_percentile":
         [82.943, 0.000000,
          89.151, 0.100000,
@@ -122,9 +126,13 @@ IMPORTED_LATENCY_DATA0 = {
          203.647, 0.956250,
          209.791, 1.000000]
 }
+
+# Another run capture on a slower URL and with longer capture window
 IMPORTED_LATENCY_DATA1 = {
     "buckets": 27, "sub_buckets": 2048, "digits": 3,
     "max_latency": IMPORTED_MAX_LATENCY,
+    "min": 4931583,
+    "max": 15384576,
     "counters":
     # list of bucket_index, [sub_bucket_index, count...]
     [12, [1203, 1, 1272, 1, 1277, 1, 1278, 1, 1296, 1, 1300, 1, 1306, 1, 1316, 1,
@@ -248,8 +256,11 @@ def check_imported_buckets(latency_data):
         expected_value = value_at_percentile[index]
         percentile = value_at_percentile[index + 1] * 100
         value = float(histogram.get_value_at_percentile(percentile)) / 1000
-        # print '%f%% %f exp:%f' % (percentile, value, expected_value)
+        print '%f%% %f exp:%f' % (percentile, value, expected_value)
         assert(value == expected_value)
+    # check min and max
+    assert(histogram.values_are_equivalent(histogram.get_min_value(), latency_data['min']))
+    assert(histogram.values_are_equivalent(histogram.get_max_value(), latency_data['max']))
 
 def test_imported_buckets():
     check_imported_buckets(IMPORTED_LATENCY_DATA0)

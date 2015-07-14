@@ -233,6 +233,8 @@ class HdrHistogram(object):
         bucket_counts must be a dict with the following content:
         {"buckets":27, "sub_buckets": 2048, "digits": 3,
          "max_latency": 86400000000,
+         "min": 891510,
+         "max": 2097910,
          "counters":
             # list of bucket_index, [sub_bucket_index, count...]
             [12, [1203, 1, 1272, 1, 1277, 1, 1278, 1, 1296, 1],
@@ -254,4 +256,6 @@ class HdrHistogram(object):
                 count = sub_bucket_list[sub_index + 1]
                 self.counts[counts_index] += count
                 self.total_count += count
+        self.min_value = min(self.min_value, bucket_counts['min'])
+        self.max_value = max(self.max_value, bucket_counts['max'])
         return True

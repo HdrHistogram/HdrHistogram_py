@@ -52,12 +52,65 @@ This library only provides a solution for the aggregation part of the problem:
 
 - provide python APIs to properly aggregate all these histograms into 1
 
+Simply aggregating a summary such as a set of latencies at percentile list is not sufficient because
+it is not correct to simply average all percentile values coming from all the sources.
+If we take the simple example of 2 sources that each produce the following results:
+
+Source 1:
+
+- 20 seconds at 50 percentile
+
+- 21 seconds at 90 percentile
+
+Source 2:
+
+- 4 seconds at 50 percentile
+
+- 5 seconds at 90 percentile
+
+A naive aggregation would be to average the 2 sets of values and end up with:
+
+- (20+4)/2 = 12 seconds at 50 percentile
+
+- (21+5)/2 = 13 seconds at 90 percentile
+
+The mere fact that a 21 second latency at 90 percentile has been reduced to 13 seconds is a glaring proof that averaging values at same latency is incorrect.
+Weighting each set by the number of total samples is not correct either.
+
+
 
 Proposed Solution
 ^^^^^^^^^^^^^^^^^
+As the above simple example may have hinted, the only correct way of aggregating multiple histograms
+is to add same-bucket counters, assuming all histograms have the same bucket structure
+(meaning same dynamic range and same precision digits).
+This solution defines a description of the information needed from each histogram source in order to aggregate all of them into 1 aggregate histogram that represents faithfully the state of the entire system.
+Each source must send the list of all bucket/sub-bucket counts so the aggregator can add all the counts.
+
+Because the number of empty buckets generally vastly outnumber non-zero buckets, it is interesting to only
+forward non-zero buckets in order to minimize the amount of information transferred.
+As an example, a typical run with 27 buckets x 2048 sub-buckets (which corresponds to the default wrk2 configuration) yields about 100 non-zero buckets.
+
 
 Histogram JSON Format
 ^^^^^^^^^^^^^^^^^^^^^
+Example of JSON document:
+.. code::
+    {
+        "buckets": 27,
+        "sub_buckets": 2048,
+        "digits": 3,
+        "max_latency": 86400000000,
+        "min": 89151,
+        "max": 209664,
+        "counters": [
+            6, [1295, 1, 1392, 1, 1432, 1, 1435, 1, 1489, 1, 1493, 1, 1536, 1, 1553, 1,
+                1560, 1, 1574, 1, 1591, 1, 1615, 1, 1672, 1, 1706, 1, 1738, 1, 1812, 1,
+                1896, 1],
+            7, [1559, 1, 1590, 1, 1638, 1]]
+    }
+
+The "counters" value is a list of bucket index and list of sub-bucket index, counter values.
 
 
 Testing
