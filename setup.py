@@ -18,7 +18,7 @@ class Tox(test):
         import tox
         sys.exit(tox.cmdline())
 
-__version__='0.0.2'
+__version__ = '0.0.3'
 
 if __name__ == '__main__':
     setup(
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         author_email='ahothan@gmail.com',
         license='Apache 2.0',
 
-        py_modules=['hdrh'],
+        packages=['hdrh'],
         keywords='hdrhistogram hdr histogram high dynamic range',
         tests_require=['tox'],
         cmdclass={'test': Tox}
