@@ -20,16 +20,16 @@ class Tox(test):
 
 if __name__ == '__main__':
     setup(
-        name='hdr_histogram',
-        version='0.1',
-        description='hdrhistogram in native python',
-        url='https://github.com/ahothan/hdrhistogram.py',
+        name='hdrhistogram',
+        version='0.0.1',
+        description='High Dynamic Range histogram in native python',
+        url='https://github.com/ahothan/hdrhistogram',
         author='Alec Hothan',
         author_email='ahothan@gmail.com',
         license='Apache 2.0',
 
-        py_modules=['hdr_histogram'],
+        py_modules=['hdrh'],
         keywords='hdrhistogram hdr histogram high dynamic range',
         tests_require=['tox'],
-        cmdclass={'test': Tox},
+        cmdclass={'test': Tox}
     )

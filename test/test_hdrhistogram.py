@@ -5,7 +5,7 @@ and converted to python
 
 
 '''
-from hdrhistogram import HdrHistogram
+from hdrh.histogram import HdrHistogram
 
 # histogram __init__ values
 LOWEST = 1
