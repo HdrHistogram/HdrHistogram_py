@@ -18,12 +18,15 @@ class Tox(test):
         import tox
         sys.exit(tox.cmdline())
 
+__version__='0.0.2'
+
 if __name__ == '__main__':
     setup(
         name='hdrhistogram',
-        version='0.0.1',
+        version=__version__,
         description='High Dynamic Range histogram in native python',
         url='https://github.com/ahothan/hdrhistogram',
+        download_url='https://github.com/ahothan/hdrhistogram/tarball/' + __version__,
         author='Alec Hothan',
         author_email='ahothan@gmail.com',
         license='Apache 2.0',
