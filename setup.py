@@ -18,7 +18,7 @@ class Tox(test):
         import tox
         sys.exit(tox.cmdline())
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 if __name__ == '__main__':
     setup(

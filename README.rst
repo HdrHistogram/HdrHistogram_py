@@ -95,7 +95,9 @@ As an example, a typical run with 27 buckets x 2048 sub-buckets (which correspon
 Histogram JSON Format
 ^^^^^^^^^^^^^^^^^^^^^
 Example of JSON document:
+
 .. code::
+
     {
         "buckets": 27,
         "sub_buckets": 2048,
@@ -112,9 +114,19 @@ Example of JSON document:
 
 The "counters" value is a list of bucket index and list of sub-bucket index, counter values.
 
+The "buckets", "sub_buckets", "digits" and "max_latency" keys are optional. If present, sanity check will be performed to make sure that the target histogram will have the same number of buckets and sub-buckets.
+When a source starts streaming histogram buckets, it is recommended to send the first JSON document with all fields and subsequent ones without the optional fields (to save bandwidth).
 
-Testing
--------
+API Extensions
+--------------
+Available APIs are similar to the original HdrHistogram code (Java or C) except for the following functions:
+
+- HdrHistogram.add_bucket_counts() to add a new set of buckets to a given histogram.
+
+- HdrHistogram.get_percentile_to_value_dict() to get the values for a list of percentile values.
+
+Unit Testing
+------------
 
 You need tox to be installed.
 Just run tox from the repository top folder to execute:
@@ -130,11 +142,14 @@ Limitations and Caveats
 The latest features and bug fixes of the original HDR histogram library are
 likely not available in this python port.
 
+Likewise, as stated above, not all APIs/methods will be available in this python version as the original goal was to satisfy only the initial requirements for only a subset of the APIs (sufficient to do histogram aggregation).
+
 Licensing
 ---------
 
 This code is licensed under Apache License 2.0.
-The original implementation in Java (https://github.com/giltene/wrk2.git) is licensed under CCO 1.0 (http://creativecommons.org/publicdomain/zero/1.0/)
+The original implementation in Java (https://github.com/giltene/wrk2.git) is licensed under CCO 1.0
+(http://creativecommons.org/publicdomain/zero/1.0/)
 
 Contribution
 ------------

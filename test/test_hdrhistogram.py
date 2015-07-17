@@ -275,3 +275,47 @@ def test_percentile_list():
     perc_dict = histogram.get_percentile_to_value_dict([x * 100 for x in perc_list])
     for perc, exp_value in zip(perc_list, expected_value_list):
         assert(float(perc_dict[perc * 100]) / 1000 == exp_value)
+
+IMPORTED_LATENCY_DATA3 = {
+    "buckets": 27, "sub_buckets": 2048, "digits": 3,
+    "max_latency": IMPORTED_MAX_LATENCY,
+    "min": 89151,
+    "max": 209664,
+    "counters": [
+        6, [1295, 1, 1392, 1, 1432, 1, 1435, 1, 1489, 1, 1493, 1, 1536, 1, 1553, 1,
+            1560, 1, 1574, 1, 1591, 1, 1615, 1, 1672, 1, 1706, 1, 1738, 1, 1812, 1,
+            1896, 1],
+        7, [1559, 1, 1590, 1, 1638, 1]]
+}
+
+def test_add_imported_buckets():
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
+    latency_data = IMPORTED_LATENCY_DATA3
+    assert(histogram.add_bucket_counts(latency_data))
+    total = histogram.get_total_count()
+    # remove the optional keys
+    del latency_data['buckets']
+    del latency_data['sub_buckets']
+    del latency_data['digits']
+    del latency_data['max_latency']
+    assert(histogram.add_bucket_counts(latency_data))
+
+    # check count is double
+    assert(histogram.get_total_count() == 2 * total)
+
+    # check min and max have not changed
+    assert(histogram.values_are_equivalent(histogram.get_min_value(), latency_data['min']))
+    assert(histogram.values_are_equivalent(histogram.get_max_value(), latency_data['max']))
+
+    # check that the percentile values are identical
+    histogram1x = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
+    assert(histogram1x.add_bucket_counts(latency_data))
+    for perc in [0, 10, 20, 30, 40, 50, 60, 75, 90, 99, 99.9, 99.99, 99.999]:
+        assert(histogram.get_value_at_percentile(perc) == histogram1x.get_value_at_percentile(perc))
+
+def test_reset():
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
+    latency_data = IMPORTED_LATENCY_DATA0
+    assert(histogram.add_bucket_counts(latency_data))
+    histogram.reset()
+    assert(histogram.get_total_count() == 0)

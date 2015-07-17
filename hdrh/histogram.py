@@ -112,6 +112,11 @@ class HdrHistogram(object):
         return self._counts_index(bucket_index, sub_bucket_index)
 
     def record_value(self, value):
+        '''Record a new value into the histogram
+
+        Args:
+            value: the value to record (must be in the valid range)
+        '''
         if value < 0:
             return False
         counts_index = self._counts_index_for(value)
@@ -158,26 +163,33 @@ class HdrHistogram(object):
         return next_non_equivalent_value - 1
 
     def get_value_at_percentile(self, percentile):
+        '''Get the value for a given percentile
+
+        Args:
+            percentile: a float in [0.0..100.0]
+        Returns:
+            the value for the given percentile
+        '''
         itr = HdrIterator(self)
         requested_percentile = percentile if percentile < 100.0 else 100.0
         count_at_percentile = int(((requested_percentile / 100) * self.total_count) + 0.5)
         count_at_percentile = max(count_at_percentile, 1)
         total = 0
         for value in itr:
-            '''
-            if itr.count_at_index:
-                print('--- Iteration bsb=%d/%d index=%d value=%d at_index=%d to_index=%d' %
-                      (itr.bucket_index,
-                       itr.sub_bucket_index,
-                       self._counts_index(itr.bucket_index, itr.sub_bucket_index),
-                       value, itr.count_at_index, total))
-            '''
             total += itr.count_at_index
             if total >= count_at_percentile:
                 return self.get_highest_equivalent_value(value)
         return 0
 
     def get_percentile_to_value_dict(self, percentile_list):
+        '''A faster alternative to query values for a list of percentiles.
+
+        Args:
+            percentile_list: a list of percentiles in any order, dups will be ignored
+            each element in the list must be a float value in [0.0 .. 100.0]
+        Returns:
+            a dict of percentile values indexed by the percentile
+        '''
         result = {}
         itr = HdrIterator(self)
         total = 0
@@ -214,6 +226,12 @@ class HdrHistogram(object):
         return self.counts[counts_index]
 
     def values_are_equivalent(self, val1, val2):
+        '''Check whether 2 values are equivalent (meaning they
+        are in the same bucket/range)
+
+        Returns:
+            true if the 2 values are equivalent
+        '''
         return self.get_lowest_equivalent_value(val1) == self.get_lowest_equivalent_value(val2)
 
     def get_max_value(self):
@@ -230,22 +248,29 @@ class HdrHistogram(object):
 
     def add_bucket_counts(self, bucket_counts):
         '''Add a list of bucket/sub-bucket counts to the histogram
-        bucket_counts must be a dict with the following content:
-        {"buckets":27, "sub_buckets": 2048, "digits": 3,
-         "max_latency": 86400000000,
-         "min": 891510,
-         "max": 2097910,
-         "counters":
-            # list of bucket_index, [sub_bucket_index, count...]
-            [12, [1203, 1, 1272, 1, 1277, 1, 1278, 1, 1296, 1],
-             13, [1024, 1, 1027, 2, 1030, 1, 1031, 1]]
-        }
-        returns true if success or false if error (buckets and sub bucket count
-        must match)
+
+        Args:
+            bucket_counts: must be a dict with the following content:
+            {"buckets":27, "sub_buckets": 2048, "digits": 3,
+             "max_latency": 86400000000,
+             "min": 891510,
+             "max": 2097910,
+             "counters":
+                # list of bucket_index, [sub_bucket_index, count...]
+                [12, [1203, 1, 1272, 1, 1277, 1, 1278, 1, 1296, 1],
+                 13, [1024, 1, 1027, 2, 1030, 1, 1031, 1]]
+            }
+            The first 4 keys are optional.
+
+        Returns:
+            true if success
+            false if error (buckets and sub bucket count must match if present)
         '''
-        if (bucket_counts['buckets'] != self.bucket_count) or \
-           (bucket_counts['sub_buckets'] != self.sub_bucket_count):
-            return False
+        # only check if present
+        if 'buckets' in bucket_counts:
+            if (bucket_counts['buckets'] != self.bucket_count) or \
+               (bucket_counts['sub_buckets'] != self.sub_bucket_count):
+                return False
         counts = bucket_counts['counters']
         for index in range(0, len(counts), 2):
             bucket_index = counts[index]
@@ -259,3 +284,11 @@ class HdrHistogram(object):
         self.min_value = min(self.min_value, bucket_counts['min'])
         self.max_value = max(self.max_value, bucket_counts['max'])
         return True
+
+    def reset(self):
+        '''Reset the histogram to a pristine state
+        '''
+        self.counts = [0] * self.counts_len
+        self.total_count = 0
+        self.min_value = sys.maxint
+        self.max_value = 0
