@@ -79,7 +79,7 @@ def test_percentiles():
     assert(hist.values_are_equivalent(hist.get_min_value(), 1000.0))
     assert(hist.values_are_equivalent(hist.get_max_value(), 100000000.0))
 
-def test_recorded_values():
+def test_recorded_iterator():
 
     hist = load_histogram()
     itr = iter(hist)
@@ -106,15 +106,23 @@ def check_iterator_values(itr, last_index):
         index += 1
     assert(index - 1 == last_index)
 
-def test_linear_values():
+def test_linear_iterator():
     hist = load_histogram()
     itr = hist.get_linear_iterator(100000)
     check_iterator_values(itr, 999)
 
-def test_log_values():
+def test_log_iterator():
     hist = load_histogram()
     itr = hist.get_log_iterator(10000, 2.0)
     check_iterator_values(itr, 14)
+
+def test_percentile_iterator():
+    hist = load_histogram()
+    # test with 5 ticks per half distance
+    itr = hist.get_percentile_iterator(5)
+    for value in itr:
+        expected = hist.get_highest_equivalent_value(hist.get_value_at_percentile(itr.percentile))
+        assert(value == expected)
 
 # These data are generated from an actual wrk2 run (wrk2 uses hdr_histogram.c),
 # to be used as a reference

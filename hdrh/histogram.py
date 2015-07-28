@@ -8,7 +8,9 @@ License: Apache 2.0
 '''
 import math
 import sys
+from hdrh.iterators import HdrIterator
 from hdrh.iterators import HdrRecordedIterator
+from hdrh.iterators import HdrPercentileIterator
 from hdrh.iterators import HdrLinearIterator
 from hdrh.iterators import HdrLogIterator
 
@@ -156,6 +158,11 @@ class HdrHistogram(object):
 
         return next_non_equivalent_value - 1
 
+    def get_target_count_at_percentile(self, percentile):
+        requested_percentile = percentile if percentile < 100.0 else 100.0
+        count_at_percentile = int(((requested_percentile / 100) * self.total_count) + 0.5)
+        return max(count_at_percentile, 1)
+
     def get_value_at_percentile(self, percentile):
         '''Get the value for a given percentile
 
@@ -165,9 +172,7 @@ class HdrHistogram(object):
             the value for the given percentile
         '''
         itr = iter(self)
-        requested_percentile = percentile if percentile < 100.0 else 100.0
-        count_at_percentile = int(((requested_percentile / 100) * self.total_count) + 0.5)
-        count_at_percentile = max(count_at_percentile, 1)
+        count_at_percentile = self.get_target_count_at_percentile(percentile)
         total = 0
         for value in itr:
             total += itr.count_at_index
@@ -292,8 +297,14 @@ class HdrHistogram(object):
         '''
         return HdrRecordedIterator(self)
 
+    def get_all_values_iterator(self):
+        return HdrIterator(self)
+
     def get_recorded_iterator(self):
         return HdrRecordedIterator(self)
+
+    def get_percentile_iterator(self, ticks_per_half_distance):
+        return HdrPercentileIterator(self, ticks_per_half_distance)
 
     def get_linear_iterator(self, value_units_per_bucket):
         return HdrLinearIterator(self, value_units_per_bucket)
