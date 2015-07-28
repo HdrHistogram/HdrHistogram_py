@@ -1,9 +1,16 @@
 '''
-A port to python of the hdr_histogram.c code that is included in
-https://github.com/giltene/wrk2.git
+A port to python of the hdr_histogram code from
+https://github.com/HdrHistogram/HdrHistogram_c
+
+Written by Alec Hothan
+License: Apache 2.0
+
 '''
 import math
 import sys
+from hdrh.iterators import HdrRecordedIterator
+from hdrh.iterators import HdrLinearIterator
+from hdrh.iterators import HdrLogIterator
 
 def get_bucket_count(value, subb_count, unit_mag):
     smallest_untrackable_value = subb_count << unit_mag
@@ -15,46 +22,14 @@ def get_bucket_count(value, subb_count, unit_mag):
         buckets_needed += 1
     return buckets_needed
 
-class HdrIterator(object):
-    def __init__(self, histogram):
-        self.histogram = histogram
-        self.bucket_index = 0
-        self.sub_bucket_index = -1
-        self.count_at_index = 0
-        self.count_to_index = 0
-        self.value_from_index = 0
-        self.highest_equivalent_value = 0
-
-    def __iter__(self):
-        self.bucket_index = 0
-        self.sub_bucket_index = -1
-        self.count_at_index = 0
-        self.count_to_index = 0
-        self.value_from_index = 0
-        self.highest_equivalent_value = 0
-        return self
-
-    def next(self):
-        if self.count_to_index >= self.histogram.total_count:
-            raise StopIteration()
-        self.sub_bucket_index += 1
-        if self.sub_bucket_index >= self.histogram.sub_bucket_count:
-            self.sub_bucket_index = self.histogram.sub_bucket_half_count
-            self.bucket_index += 1
-        self.count_at_index = self.histogram.get_count_at_index(self.bucket_index,
-                                                                self.sub_bucket_index)
-        self.count_to_index += self.count_at_index
-        self.value_from_index = self.histogram.get_value_from_index(self.bucket_index,
-                                                                    self.sub_bucket_index)
-        # self.highest_equivalent_value = 0
-        return self.value_from_index
-
 class HdrHistogram(object):
 
     def __init__(self,
                  lowest_trackable_value,
                  highest_trackable_value,
                  significant_figures):
+        if significant_figures < 1 or significant_figures > 5:
+            raise ValueError()
         self.lowest_trackable_value = lowest_trackable_value
         self.highest_trackable_value = highest_trackable_value
         self.significant_figures = significant_figures
@@ -111,21 +86,40 @@ class HdrHistogram(object):
         sub_bucket_index = self._get_sub_bucket_index(value, bucket_index)
         return self._counts_index(bucket_index, sub_bucket_index)
 
-    def record_value(self, value):
+    def record_value(self, value, count=1):
         '''Record a new value into the histogram
 
         Args:
             value: the value to record (must be in the valid range)
+            count: incremental count (defaults to 1)
         '''
         if value < 0:
             return False
         counts_index = self._counts_index_for(value)
-        self.counts[counts_index] += 1
-        self.total_count += 1
-        # print 'record_value %d -> counts_index=%d' % (value, counts_index)
+        if (counts_index < 0) or (self.counts_len <= counts_index):
+            return False
+
+        self.counts[counts_index] += count
+        self.total_count += count
         self.min_value = min(self.min_value, value)
         self.max_value = max(self.min_value, value)
         return True
+
+    def record_correlated_value(self, value, expected_interval, count=1):
+        '''Record a new value into the histogram and correct for
+        coordinated omission if needed
+
+        Args:
+            value: the value to record (must be in the valid range)
+            expected_interval: the expected interval between 2 value samples
+            count: incremental count (defaults to 1)
+        '''
+        while True:
+            if not self.record_value(value, count):
+                return False
+            if value <= expected_interval or expected_interval <= 0:
+                return True
+            value -= expected_interval
 
     def get_count_at_index(self, bucket_index, sub_bucket_index):
         # Calculate the index for the first entry in the bucket:
@@ -170,7 +164,7 @@ class HdrHistogram(object):
         Returns:
             the value for the given percentile
         '''
-        itr = HdrIterator(self)
+        itr = iter(self)
         requested_percentile = percentile if percentile < 100.0 else 100.0
         count_at_percentile = int(((requested_percentile / 100) * self.total_count) + 0.5)
         count_at_percentile = max(count_at_percentile, 1)
@@ -191,7 +185,7 @@ class HdrHistogram(object):
             a dict of percentile values indexed by the percentile
         '''
         result = {}
-        itr = HdrIterator(self)
+        itr = iter(self)
         total = 0
         percentile_list_index = 0
         count_at_percentile = 0
@@ -292,3 +286,17 @@ class HdrHistogram(object):
         self.total_count = 0
         self.min_value = sys.maxint
         self.max_value = 0
+
+    def __iter__(self):
+        '''Returns the recorded iterator if iter(self) is called
+        '''
+        return HdrRecordedIterator(self)
+
+    def get_recorded_iterator(self):
+        return HdrRecordedIterator(self)
+
+    def get_linear_iterator(self, value_units_per_bucket):
+        return HdrLinearIterator(self, value_units_per_bucket)
+
+    def get_log_iterator(self, value_units_first_bucket, log_base):
+        return HdrLogIterator(self, value_units_first_bucket, log_base)

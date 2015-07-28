@@ -58,9 +58,8 @@ def test_scaled_highest_equiv_value():
 def load_histogram():
 
     raw_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
-
-    for _ in range(10000):
-        raw_histogram.record_value(1000L)
+    # record this value with a count of 10,000
+    raw_histogram.record_value(1000L, 10000)
 
     raw_histogram.record_value(100000000L)
     return raw_histogram
@@ -79,6 +78,43 @@ def test_percentiles():
     assert(hist.get_total_count() == 10001)
     assert(hist.values_are_equivalent(hist.get_min_value(), 1000.0))
     assert(hist.values_are_equivalent(hist.get_max_value(), 100000000.0))
+
+def test_recorded_values():
+
+    hist = load_histogram()
+    itr = iter(hist)
+    index = 0
+    for _ in itr:
+        count_added_in_this_bucket = itr.count_at_index
+        if index == 0:
+            assert(count_added_in_this_bucket == 10000)
+        else:
+            assert(count_added_in_this_bucket == 1)
+        index += 1
+    assert(index == 2)
+
+def check_iterator_values(itr, last_index):
+    index = 0
+    for _ in itr:
+        count_added_in_this_bucket = itr.count_added_in_this_iter_step
+        if index == 0:
+            assert(count_added_in_this_bucket == 10000)
+        elif index == last_index:
+            assert(count_added_in_this_bucket == 1)
+        else:
+            assert(count_added_in_this_bucket == 0)
+        index += 1
+    assert(index - 1 == last_index)
+
+def test_linear_values():
+    hist = load_histogram()
+    itr = hist.get_linear_iterator(100000)
+    check_iterator_values(itr, 999)
+
+def test_log_values():
+    hist = load_histogram()
+    itr = hist.get_log_iterator(10000, 2.0)
+    check_iterator_values(itr, 14)
 
 # These data are generated from an actual wrk2 run (wrk2 uses hdr_histogram.c),
 # to be used as a reference
@@ -256,7 +292,7 @@ def check_imported_buckets(latency_data):
         expected_value = value_at_percentile[index]
         percentile = value_at_percentile[index + 1] * 100
         value = float(histogram.get_value_at_percentile(percentile)) / 1000
-        print '%f%% %f exp:%f' % (percentile, value, expected_value)
+        # print '%f%% %f exp:%f' % (percentile, value, expected_value)
         assert(value == expected_value)
     # check min and max
     assert(histogram.values_are_equivalent(histogram.get_min_value(), latency_data['min']))
@@ -319,3 +355,21 @@ def test_reset():
     assert(histogram.add_bucket_counts(latency_data))
     histogram.reset()
     assert(histogram.get_total_count() == 0)
+    assert(histogram.get_value_at_percentile(99.99) == 0)
+
+def test_invalid_significant_figures():
+    try:
+        HdrHistogram(LOWEST, HIGHEST, -1)
+        assert(False)
+    except ValueError:
+        pass
+    try:
+        HdrHistogram(LOWEST, HIGHEST, 6)
+        assert(False)
+    except ValueError:
+        pass
+
+def test_out_of_range_values():
+    histogram = HdrHistogram(1, 1000, 4)
+    assert(histogram.record_value(32767))
+    assert(histogram.record_value(32768) is False)
