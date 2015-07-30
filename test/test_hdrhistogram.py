@@ -12,6 +12,7 @@ LOWEST = 1
 HIGHEST = 3600 * 1000 * 1000
 SIGNIFICANT = 3
 TEST_VALUE_LEVEL = 4
+INTERVAL = 10000
 
 def test_basic():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
@@ -56,31 +57,49 @@ def test_scaled_highest_equiv_value():
     assert 10015 == histogram.get_highest_equivalent_value(10008)
 
 def load_histogram():
-
-    raw_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     # record this value with a count of 10,000
-    raw_histogram.record_value(1000L, 10000)
+    histogram.record_value(1000L, 10000)
+    histogram.record_value(100000000L)
+    return histogram
 
-    raw_histogram.record_value(100000000L)
-    return raw_histogram
+def load_corrected_histogram():
+    histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    # record this value with a count of 10,000
+    histogram.record_corrected_value(1000L, INTERVAL, 10000)
+    histogram.record_corrected_value(100000000L, INTERVAL)
+    return histogram
 
 def check_percentile(hist, percentile, value, variation):
     value_at = hist.get_value_at_percentile(percentile)
     assert(abs(value_at - value) < value * variation)
 
-def test_percentiles():
-    hist = load_histogram()
-    check_percentile(hist, 30.0, 1000.0, 0.001)
-    check_percentile(hist, 99.0, 1000.0, 0.001)
-    check_percentile(hist, 99.99, 1000.0, 0.001)
-    check_percentile(hist, 99.999, 100000000.0, 0.001)
-    check_percentile(hist, 100.0, 100000000.0, 0.001)
-    assert(hist.get_total_count() == 10001)
+def check_hist_percentiles(hist, total_count, perc_value_list):
+    for pair in perc_value_list:
+        check_percentile(hist, pair[0], pair[1], 0.001)
+    assert(hist.get_total_count() == total_count)
     assert(hist.values_are_equivalent(hist.get_min_value(), 1000.0))
     assert(hist.values_are_equivalent(hist.get_max_value(), 100000000.0))
 
-def test_recorded_iterator():
+def test_percentiles():
+    check_hist_percentiles(load_histogram(),
+                           10001,
+                           ((30.0, 1000.0),
+                            (99.0, 1000.0),
+                            (99.99, 1000.0),
+                            (99.999, 100000000.0),
+                            (100.0, 100000000.0)))
+    check_hist_percentiles(load_corrected_histogram(),
+                           20000,
+                           ((30.0, 1000.0),
+                            (50.0, 1000.0),
+                            (75.0, 50000000.0),
+                            (90.0, 80000000.0),
+                            (99.0, 98000000.0),
+                            (99.999, 100000000.0),
+                            (100.0, 100000000.0)))
 
+def test_recorded_iterator():
     hist = load_histogram()
     itr = iter(hist)
     index = 0
@@ -92,6 +111,21 @@ def test_recorded_iterator():
             assert(count_added_in_this_bucket == 1)
         index += 1
     assert(index == 2)
+
+    hist = load_corrected_histogram()
+    index = 0
+    total_added_count = 0
+    itr = iter(hist)
+    for _ in itr:
+        count_added_in_this_bucket = itr.count_at_index
+        if index == 0:
+            assert(count_added_in_this_bucket == 10000)
+
+        assert(itr.count_at_index != 0)
+        total_added_count += count_added_in_this_bucket
+        index += 1
+    assert(total_added_count == 20000)
+    assert(total_added_count == hist.get_total_count())
 
 def check_iterator_values(itr, last_index):
     index = 0
@@ -106,15 +140,37 @@ def check_iterator_values(itr, last_index):
         index += 1
     assert(index - 1 == last_index)
 
+def check_corrected_iterator_values(itr, last_index):
+    index = 0
+    total_added_count = 0
+    for _ in itr:
+        count_added_in_this_bucket = itr.count_added_in_this_iter_step
+        if index == 0:
+            # first bucket is range [0, 10000]
+            # value 1000  count = 10000
+            # value 10000 count = 1 (corrected from the 100M value with 10K interval)
+            assert(count_added_in_this_bucket == 10001)
+        index += 1
+        total_added_count += count_added_in_this_bucket
+
+    assert(index - 1 == last_index)
+    assert(total_added_count == 20000)
+
 def test_linear_iterator():
     hist = load_histogram()
     itr = hist.get_linear_iterator(100000)
     check_iterator_values(itr, 999)
+    hist = load_corrected_histogram()
+    itr = hist.get_linear_iterator(10000)
+    check_corrected_iterator_values(itr, 9999)
 
 def test_log_iterator():
     hist = load_histogram()
     itr = hist.get_log_iterator(10000, 2.0)
     check_iterator_values(itr, 14)
+    hist = load_corrected_histogram()
+    itr = hist.get_log_iterator(10000, 2.0)
+    check_corrected_iterator_values(itr, 14)
 
 def test_percentile_iterator():
     hist = load_histogram()

@@ -100,14 +100,13 @@ class HdrHistogram(object):
         counts_index = self._counts_index_for(value)
         if (counts_index < 0) or (self.counts_len <= counts_index):
             return False
-
         self.counts[counts_index] += count
         self.total_count += count
         self.min_value = min(self.min_value, value)
-        self.max_value = max(self.min_value, value)
+        self.max_value = max(self.max_value, value)
         return True
 
-    def record_correlated_value(self, value, expected_interval, count=1):
+    def record_corrected_value(self, value, expected_interval, count=1):
         '''Record a new value into the histogram and correct for
         coordinated omission if needed
 

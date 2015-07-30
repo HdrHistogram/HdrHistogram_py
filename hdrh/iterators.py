@@ -78,18 +78,30 @@ class HdrLiLoIterator(HdrIterator):
     def move_next_value(self):
         pass
 
+    def peek_next_value_from_index(self):
+        # get the indices for teh next bucket
+        bucket_index = self.bucket_index
+        sub_bucket_index = self.sub_bucket_index + 1
+        if sub_bucket_index >= self.histogram.sub_bucket_count:
+            sub_bucket_index = self.histogram.sub_bucket_half_count
+            bucket_index += 1
+        return self.histogram.get_value_from_index(bucket_index, sub_bucket_index)
+
     def next(self):
         self.count_added_in_this_iter_step = 0
-        while True:
-            self.move_next()
-            self.update_values()
-            self.count_added_in_this_iter_step += self.count_at_index
-            if (self.value_from_index >= self.next_value_report_lev_lowest_eq) or \
-               not self.has_next():
-                self.move_next_value()
-                self.next_value_report_lev_lowest_eq = \
-                    self.histogram.get_lowest_equivalent_value(self.next_value_report_lev)
-                return self.highest_equivalent_value
+        if self.has_next() or \
+           self.peek_next_value_from_index() > self.next_value_report_lev_lowest_eq:
+            while True:
+                if self.value_from_index >= self.next_value_report_lev_lowest_eq or \
+                   not self.has_next():
+                    self.move_next_value()
+                    self.next_value_report_lev_lowest_eq = \
+                        self.histogram.get_lowest_equivalent_value(self.next_value_report_lev)
+                    return self.highest_equivalent_value
+                self.move_next()
+                self.update_values()
+                self.count_added_in_this_iter_step += self.count_at_index
+        raise StopIteration()
 
 class HdrLinearIterator(HdrLiLoIterator):
     '''Provide a means of iterating through histogram values using linear steps.
