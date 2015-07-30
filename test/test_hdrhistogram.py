@@ -22,6 +22,13 @@ def test_basic():
     assert(histogram.unit_magnitude == 0)
     assert(histogram.sub_bucket_half_count_magnitude == 10)
 
+def test_empty_histogram():
+    histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    assert(histogram.get_min_value() == 0)
+    assert(histogram.get_max_value() == 0)
+    assert(histogram.get_mean_value() == 0)
+    assert(histogram.get_stddev() == 0)
+
 def test_large_numbers():
     histogram = HdrHistogram(20000000, 100000000, 5)
     histogram.record_value(100000000)
@@ -437,3 +444,19 @@ def test_out_of_range_values():
     histogram = HdrHistogram(1, 1000, 4)
     assert(histogram.record_value(32767))
     assert(histogram.record_value(32768) is False)
+
+# Make up a list of values for testing purpose
+VALUES_LIST = (
+    1000,
+    1000,
+    3000,
+    3000
+)
+
+def test_mean_stddev():
+    # fill up a histogram with the values in the list
+    histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    for value in VALUES_LIST:
+        histogram.record_value(value)
+    assert(histogram.get_mean_value() == 2000.5)
+    assert(histogram.get_stddev() == 1000.5)

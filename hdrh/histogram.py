@@ -238,11 +238,42 @@ class HdrHistogram(object):
         return self.get_highest_equivalent_value(self.max_value)
 
     def get_min_value(self):
-        if 0 < self.counts[0]:
+        if 0 < self.counts[0] or self.total_count == 0:
             return 0
         if sys.maxint == self.min_value:
             return sys.maxint
         return self.get_lowest_equivalent_value(self.min_value)
+
+    def _hdr_size_of_equiv_value_range(self, value):
+        bucket_index = self._get_bucket_index(value)
+        sub_bucket_index = self._get_sub_bucket_index(value, bucket_index)
+        if sub_bucket_index >= self.sub_bucket_count:
+            bucket_index += 1
+        return 1 << (self.unit_magnitude + bucket_index)
+
+    def _hdr_median_equiv_value(self, value):
+        return self.get_lowest_equivalent_value(value) + \
+            (self._hdr_size_of_equiv_value_range(value) >> 1)
+
+    def get_mean_value(self):
+        if not self.total_count:
+            return 0.0
+        total = 0
+        itr = self.get_recorded_iterator()
+        for _ in itr:
+            total += itr.count_at_index * self._hdr_median_equiv_value(itr.value_from_index)
+        return float(total) / self.total_count
+
+    def get_stddev(self):
+        if not self.total_count:
+            return 0.0
+        mean = self.get_mean_value()
+        geometric_dev_total = 0.0
+        itr = self.get_recorded_iterator()
+        for _ in itr:
+            dev = (self._hdr_median_equiv_value(itr.value_from_index) * 1.0) - mean
+            geometric_dev_total += (dev * dev) * itr.count_at_index
+        return math.sqrt(geometric_dev_total / self.total_count)
 
     def add_bucket_counts(self, bucket_counts):
         '''Add a list of bucket/sub-bucket counts to the histogram
