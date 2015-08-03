@@ -1,4 +1,13 @@
+'''
+A port to python of the hdr_histogram code from
+https://github.com/HdrHistogram/HdrHistogram_c (C version)
 
+Histogram Iterators: all values, recorded, linear and logarithmic
+
+Written by Alec Hothan
+Apache License 2.0
+
+'''
 import math
 
 class HdrIterator(object):
