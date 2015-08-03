@@ -1,9 +1,9 @@
 '''
 A port to python of the hdr_histogram code from
-https://github.com/HdrHistogram/HdrHistogram_c
+https://github.com/HdrHistogram/HdrHistogram_c (C version)
 
 Written by Alec Hothan
-License: Apache 2.0
+Apache License 2.0
 
 '''
 import math
@@ -13,6 +13,7 @@ from hdrh.iterators import HdrRecordedIterator
 from hdrh.iterators import HdrPercentileIterator
 from hdrh.iterators import HdrLinearIterator
 from hdrh.iterators import HdrLogIterator
+from hdrh.codec import HdrHistogramEncoder
 
 def get_bucket_count(value, subb_count, unit_mag):
     smallest_untrackable_value = subb_count << unit_mag
@@ -29,7 +30,8 @@ class HdrHistogram(object):
     def __init__(self,
                  lowest_trackable_value,
                  highest_trackable_value,
-                 significant_figures):
+                 significant_figures,
+                 b64_wrap=True):
         if significant_figures < 1 or significant_figures > 5:
             raise ValueError()
         self.lowest_trackable_value = lowest_trackable_value
@@ -48,10 +50,16 @@ class HdrHistogram(object):
                                              self.sub_bucket_count,
                                              self.unit_magnitude)
         self.counts_len = (self.bucket_count + 1) * (self.sub_bucket_count / 2)
-        self.counts = [0] * self.counts_len
         self.total_count = 0
         self.min_value = sys.maxint
         self.max_value = 0
+        # to encode this histogram into a compressed/base64 format ready
+        # to be exported
+        self.encoder = HdrHistogramEncoder(self, b64_wrap)
+        # the counters reside directly in the payload object
+        # allocated by the encoder
+        # so that compression for wire transfer can be done without copy
+        self.counts = self.encoder.get_counts()
 
     def _clz(self, value):
         """calculate the leading zeros, equivalent to C __builtin_clzll()
@@ -341,3 +349,29 @@ class HdrHistogram(object):
 
     def get_log_iterator(self, value_units_first_bucket, log_base):
         return HdrLogIterator(self, value_units_first_bucket, log_base)
+
+    def encode(self):
+        '''Encode this histogram
+        Return:
+            a string containing the base64 encoded compressed histogram (V1 format)
+        '''
+        return self.encoder.encode()
+
+    def decode_and_add(self, b64_encoded_histogram):
+        '''Decode a base64 encoded compressed histogram and add it to
+        this histogram
+        Args:
+            b64_encoded_histogram (string) a base 64 encoded compressed histogram
+                following the V1 format, such as one returned by the encode() method
+        Exception:
+            TypeError in case of base64 decode error
+            HdrCookieException:
+                the main header has an invalid cookie
+                the compressed payload header has an invalid cookie
+            HdrLengthException:
+                the decompressed size is too small for the HdrPayload structure
+                or is not aligned or is too large for the passed payload class
+            zlib.error:
+                in case of zlib decompression error
+        '''
+        self.encoder.decode_and_add(b64_encoded_histogram)
