@@ -2,7 +2,8 @@
 Test code for the python version of HdrHistogram.
 
 Ported from
-https://github.com/HdrHistogram/HdrHistogram_c (C version)
+https://github.com/HdrHistogram/HdrHistogram (Java)
+https://github.com/HdrHistogram/HdrHistogram_c (C)
 
 Written by Alec Hothan
 Apache License 2.0
@@ -22,6 +23,7 @@ SIGNIFICANT = 3
 TEST_VALUE_LEVEL = 4
 INTERVAL = 10000
 
+@pytest.mark.basic
 def test_basic():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     assert(histogram.bucket_count == 22)
@@ -30,6 +32,7 @@ def test_basic():
     assert(histogram.unit_magnitude == 0)
     assert(histogram.sub_bucket_half_count_magnitude == 10)
 
+@pytest.mark.basic
 def test_empty_histogram():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     assert(histogram.get_min_value() == 0)
@@ -37,6 +40,7 @@ def test_empty_histogram():
     assert(histogram.get_mean_value() == 0)
     assert(histogram.get_stddev() == 0)
 
+@pytest.mark.basic
 def test_large_numbers():
     histogram = HdrHistogram(20000000, 100000000, 5)
     histogram.record_value(100000000)
@@ -47,12 +51,14 @@ def test_large_numbers():
     assert(histogram.values_are_equivalent(100000000, histogram.get_value_at_percentile(83.34)))
     assert(histogram.values_are_equivalent(100000000, histogram.get_value_at_percentile(99.0)))
 
+@pytest.mark.basic
 def test_record_value():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     histogram.record_value(TEST_VALUE_LEVEL)
     assert(histogram.get_count_at_value(TEST_VALUE_LEVEL) == 1)
     assert(histogram.get_total_count() == 1)
 
+@pytest.mark.basic
 def test_highest_equivalent_value():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     assert 8183 * 1024 + 1023 == histogram.get_highest_equivalent_value(8180 * 1024)
@@ -62,6 +68,7 @@ def test_highest_equivalent_value():
     assert 10007 * 1024 + 1023 == histogram.get_highest_equivalent_value(10007 * 1024)
     assert 10015 * 1024 + 1023 == histogram.get_highest_equivalent_value(10008 * 1024)
 
+@pytest.mark.basic
 def test_scaled_highest_equiv_value():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     assert 8183 == histogram.get_highest_equivalent_value(8180)
@@ -96,6 +103,7 @@ def check_hist_percentiles(hist, total_count, perc_value_list):
     assert(hist.values_are_equivalent(hist.get_min_value(), 1000.0))
     assert(hist.values_are_equivalent(hist.get_max_value(), 100000000.0))
 
+@pytest.mark.basic
 def test_percentiles():
     check_hist_percentiles(load_histogram(),
                            10001,
@@ -114,12 +122,12 @@ def test_percentiles():
                             (99.999, 100000000.0),
                             (100.0, 100000000.0)))
 
+@pytest.mark.iterators
 def test_recorded_iterator():
     hist = load_histogram()
-    itr = iter(hist)
     index = 0
-    for _ in itr:
-        count_added_in_this_bucket = itr.count_at_index
+    for item in hist.get_recorded_iterator():
+        count_added_in_this_bucket = item.count_added_in_this_iter_step
         if index == 0:
             assert(count_added_in_this_bucket == 10000)
         else:
@@ -130,13 +138,12 @@ def test_recorded_iterator():
     hist = load_corrected_histogram()
     index = 0
     total_added_count = 0
-    itr = iter(hist)
-    for _ in itr:
-        count_added_in_this_bucket = itr.count_at_index
+    for item in hist.get_recorded_iterator():
+        count_added_in_this_bucket = item.count_added_in_this_iter_step
         if index == 0:
             assert(count_added_in_this_bucket == 10000)
 
-        assert(itr.count_at_index != 0)
+        assert(item.count_at_value_iterated_to != 0)
         total_added_count += count_added_in_this_bucket
         index += 1
     assert(total_added_count == 20000)
@@ -144,8 +151,8 @@ def test_recorded_iterator():
 
 def check_iterator_values(itr, last_index):
     index = 0
-    for _ in itr:
-        count_added_in_this_bucket = itr.count_added_in_this_iter_step
+    for item in itr:
+        count_added_in_this_bucket = item.count_added_in_this_iter_step
         if index == 0:
             assert(count_added_in_this_bucket == 10000)
         elif index == last_index:
@@ -158,8 +165,8 @@ def check_iterator_values(itr, last_index):
 def check_corrected_iterator_values(itr, last_index):
     index = 0
     total_added_count = 0
-    for _ in itr:
-        count_added_in_this_bucket = itr.count_added_in_this_iter_step
+    for item in itr:
+        count_added_in_this_bucket = item.count_added_in_this_iter_step
         if index == 0:
             # first bucket is range [0, 10000]
             # value 1000  count = 10000
@@ -171,6 +178,7 @@ def check_corrected_iterator_values(itr, last_index):
     assert(index - 1 == last_index)
     assert(total_added_count == 20000)
 
+@pytest.mark.iterators
 def test_linear_iterator():
     hist = load_histogram()
     itr = hist.get_linear_iterator(100000)
@@ -179,6 +187,7 @@ def test_linear_iterator():
     itr = hist.get_linear_iterator(10000)
     check_corrected_iterator_values(itr, 9999)
 
+@pytest.mark.iterators
 def test_log_iterator():
     hist = load_histogram()
     itr = hist.get_log_iterator(10000, 2.0)
@@ -187,13 +196,53 @@ def test_log_iterator():
     itr = hist.get_log_iterator(10000, 2.0)
     check_corrected_iterator_values(itr, 14)
 
+@pytest.mark.iterators
 def test_percentile_iterator():
     hist = load_histogram()
     # test with 5 ticks per half distance
-    itr = hist.get_percentile_iterator(5)
-    for value in itr:
-        expected = hist.get_highest_equivalent_value(hist.get_value_at_percentile(itr.percentile))
-        assert(value == expected)
+    for item in hist.get_percentile_iterator(5):
+        expected = hist.get_highest_equivalent_value(hist.get_value_at_percentile(item.percentile))
+        assert(item.value_iterated_to == expected)
+
+@pytest.mark.iterators
+def test_reset_iterator():
+    hist = load_corrected_histogram()
+    itr = hist.get_recorded_iterator()
+
+    # do a partial iteration
+    index = 0
+    total_added_count = 0
+    for item in itr:
+        count_added_in_this_bucket = item.count_added_in_this_iter_step
+        if index == 0:
+            assert(count_added_in_this_bucket == 10000)
+
+        assert(item.count_at_value_iterated_to != 0)
+        total_added_count += count_added_in_this_bucket
+        index += 1
+        if total_added_count >= 10000:
+            break
+
+    # reset iterator and do a full iteration
+    itr.reset()
+    index = 0
+    total_added_count = 0
+    for item in itr:
+        count_added_in_this_bucket = item.count_added_in_this_iter_step
+        if index == 0:
+            assert(count_added_in_this_bucket == 10000)
+
+        assert(item.count_at_value_iterated_to != 0)
+        total_added_count += count_added_in_this_bucket
+        index += 1
+    assert(total_added_count == 20000)
+    assert(total_added_count == hist.get_total_count())
+
+    # just run the reset method
+    hist.get_all_values_iterator().reset()
+    hist.get_linear_iterator(100000).reset()
+    hist.get_log_iterator(10000, 2.0).reset()
+    hist.get_percentile_iterator(5).reset()
 
 # These data are generated from an actual wrk2 run (wrk2 uses hdr_histogram.c),
 # to be used as a reference
@@ -215,7 +264,7 @@ IMPORTED_LATENCY_DATA0 = {
     # pairs of value in ms and percentile
     # this is only present/used for UT to verify that the output is correct
     "value_percentile":
-        [82.943, 0.000000,
+        [82.880, 0.000000,  # wrk2: 82.943
          89.151, 0.100000,
          91.903, 0.200000,
          95.615, 0.300000,
@@ -308,7 +357,7 @@ IMPORTED_LATENCY_DATA1 = {
           1782, 1, 1785, 1, 1786, 1, 1790, 1, 1792, 1, 1795, 1, 1802, 1, 1806, 1,
           1813, 2, 1826, 1, 1827, 1, 1830, 1, 1841, 1, 1852, 1, 1878, 1]],
     "value_percentile":
-        [4931.583, 0.000000,
+        [4927.488, 0.000000,  # wrk2: 4931.583
          6189.055, 0.100000,
          7114.751, 0.200000,
          8011.775, 0.300000,
@@ -379,11 +428,13 @@ def check_imported_buckets(latency_data):
 
 # import cProfile
 
+@pytest.mark.json
 def test_imported_buckets():
     check_imported_buckets(IMPORTED_LATENCY_DATA0)
     check_imported_buckets(IMPORTED_LATENCY_DATA1)
     # cProfile.runctx('check_imported_buckets(IMPORTED_LATENCY_DATA1)', globals(), locals())
 
+@pytest.mark.json
 def test_percentile_list():
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
     assert(histogram.add_bucket_counts(IMPORTED_LATENCY_DATA0))
@@ -406,6 +457,7 @@ IMPORTED_LATENCY_DATA3 = {
         7, [1559, 1, 1590, 1, 1638, 1]]
 }
 
+@pytest.mark.json
 def test_add_imported_buckets():
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
     latency_data = IMPORTED_LATENCY_DATA3
@@ -431,6 +483,7 @@ def test_add_imported_buckets():
     for perc in [0, 10, 20, 30, 40, 50, 60, 75, 90, 99, 99.9, 99.99, 99.999]:
         assert(histogram.get_value_at_percentile(perc) == histogram1x.get_value_at_percentile(perc))
 
+@pytest.mark.basic
 def test_reset():
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
     latency_data = IMPORTED_LATENCY_DATA0
@@ -439,6 +492,7 @@ def test_reset():
     assert(histogram.get_total_count() == 0)
     assert(histogram.get_value_at_percentile(99.99) == 0)
 
+@pytest.mark.basic
 def test_invalid_significant_figures():
     try:
         HdrHistogram(LOWEST, HIGHEST, -1)
@@ -451,6 +505,7 @@ def test_invalid_significant_figures():
     except ValueError:
         pass
 
+@pytest.mark.basic
 def test_out_of_range_values():
     histogram = HdrHistogram(1, 1000, 4)
     assert(histogram.record_value(32767))
@@ -464,6 +519,7 @@ VALUES_LIST = (
     3000
 )
 
+@pytest.mark.basic
 def test_mean_stddev():
     # fill up a histogram with the values in the list
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)

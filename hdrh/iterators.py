@@ -1,6 +1,9 @@
 '''
-A port to python of the hdr_histogram code from
-https://github.com/HdrHistogram/HdrHistogram_c (C version)
+A pure python version of the hdr_histogram code
+
+Ported from
+https://github.com/HdrHistogram/HdrHistogram (Java)
+https://github.com/HdrHistogram/HdrHistogram_c (C)
 
 Histogram Iterators: all values, recorded, linear and logarithmic
 
@@ -8,9 +11,41 @@ Written by Alec Hothan
 Apache License 2.0
 
 '''
+from abc import abstractmethod
 import math
 
-class HdrIterator(object):
+class HdrConcurrentModificationException(Exception):
+    pass
+
+class HdrIterationValue(object):
+    '''Class of the values returned by each iterator
+    '''
+    def __init__(self, hdr_iterator):
+        self.hdr_iterator = hdr_iterator
+        self.value_iterated_to = 0
+        self.value_iterated_from = 0,
+        self.count_at_value_iterated_to = 0
+        self.count_added_in_this_iter_step = 0
+        self.total_count_to_this_value = 0
+        self.total_value_to_this_value = 0
+        self.percentile = 0.0
+        self.percentile_level_iterated_to = 0.0
+        self.int_to_double_conversion_ratio = 0.0
+
+    def set(self, value_iterated_to):
+        hdr_it = self.hdr_iterator
+        self.value_iterated_to = value_iterated_to
+        self.value_iterated_from = hdr_it.prev_value_iterated_to
+        self.count_at_value_iterated_to = hdr_it.count_at_this_value
+        self.count_added_in_this_iter_step = \
+            hdr_it.total_count_to_current_index - hdr_it.total_count_to_prev_index
+        self.total_count_to_this_value = hdr_it.total_count_to_current_index
+        self.total_value_to_this_value = hdr_it.value_to_index
+        self.percentile = (100.0 * hdr_it.total_count_to_current_index) / hdr_it.total_count
+        self.percentile_level_iterated_to = hdr_it.get_percentile_iterated_to()
+        self.int_to_double_conversion_ratio = hdr_it.int_to_double_conversion_ratio
+
+class AbstractHdrIterator(object):
     '''Provide a means of iterating through all histogram values using the finest
     granularity steps supported by the underlying representation.
     The iteration steps through all possible unit value levels, regardless of
@@ -19,113 +54,186 @@ class HdrIterator(object):
     '''
     def __init__(self, histogram):
         self.histogram = histogram
-        self.bucket_index = 0
-        self.sub_bucket_index = -1
-        self.count_at_index = 0
-        self.count_to_index = 0
-        self.value_from_index = 0
-        self.highest_equivalent_value = 0
+        self.current_index = 0
+        self.count_at_this_value = 0
+        self.total_count_to_current_index = 0
+        self.total_count_to_prev_index = 0
+        self.prev_value_iterated_to = 0
+        self.value_at_index = 0
+        self.value_to_index = 0
+        self.value_at_next_index = 1 << histogram.unit_magnitude
+        self.current_iteration_value = HdrIterationValue(self)
+        # take a snapshot of the total count
+        self.total_count = histogram.total_count
+        self.int_to_double_conversion_ratio = histogram.int_to_double_conversion_ratio
+        self.fresh_sub_bucket = True
 
     def __iter__(self):
-        self.bucket_index = 0
-        self.sub_bucket_index = -1
-        self.count_at_index = 0
-        self.count_to_index = 0
-        self.value_from_index = 0
-        self.highest_equivalent_value = 0
+        self.reset_iterator(self.histogram)
         return self
 
-    def has_next(self):
-        return self.count_to_index < self.histogram.total_count
+    def reset_iterator(self, histogram):
+        if not histogram:
+            histogram = self.histogram
+        self.histogram = histogram
+        self.current_index = 0
+        self.count_at_this_value = 0
+        self.total_count_to_current_index = 0
+        self.total_count_to_prev_index = 0
+        self.prev_value_iterated_to = 0
+        self.value_at_index = 0
+        self.value_to_index = 0
+        self.value_at_next_index = 1 << histogram.unit_magnitude
+        self.current_iteration_value = HdrIterationValue(self)
+        # take a snapshot of the total count
+        self.total_count = histogram.total_count
+        self.int_to_double_conversion_ratio = histogram.int_to_double_conversion_ratio
+        self.fresh_sub_bucket = True
 
-    def move_next(self):
-        if self.has_next():
-            self.sub_bucket_index += 1
-            if self.sub_bucket_index >= self.histogram.sub_bucket_count:
-                self.sub_bucket_index = self.histogram.sub_bucket_half_count
-                self.bucket_index += 1
-            self.count_at_index = self.histogram.get_count_at_index(self.bucket_index,
-                                                                    self.sub_bucket_index)
-            self.count_to_index += self.count_at_index
-        else:
-            raise StopIteration()
+    def has_next(self):
+        return self.total_count_to_current_index < self.total_count
 
     def next(self):
-        self.move_next()
-        return self.update_values()
+        if self.total_count != self.histogram.total_count:
+            raise HdrConcurrentModificationException()
+        while self.has_next():
+            self.count_at_this_value = self.histogram.get_count_at_index(self.current_index)
+            if self.fresh_sub_bucket:
+                self.total_count_to_current_index += self.count_at_this_value
+                self.value_to_index += self.count_at_this_value * self.get_value_iterated_to()
+                self.fresh_sub_bucket = False
+            if self.reached_iteration_level():
+                value_iterated_to = self.get_value_iterated_to()
+                self.current_iteration_value.set(value_iterated_to)
 
-    def update_values(self):
-        self.value_from_index = self.histogram.get_value_from_index(self.bucket_index,
-                                                                    self.sub_bucket_index)
-        self.highest_equivalent_value = \
-            self.histogram.get_highest_equivalent_value(self.value_from_index)
-        return self.highest_equivalent_value
+                self.prev_value_iterated_to = value_iterated_to
+                self.total_count_to_prev_index = self.total_count_to_current_index
 
-class HdrRecordedIterator(HdrIterator):
+                self.increment_iteration_level()
+
+                if self.total_count != self.histogram.total_count:
+                    raise HdrConcurrentModificationException()
+
+                return self.current_iteration_value
+
+            # get to the next sub bucket
+            self.increment_sub_bucket()
+
+        if self.total_count_to_current_index > self.total_count_to_prev_index:
+            # We are at the end of the iteration but we still need to report
+            # the last iteration value
+            value_iterated_to = self.get_value_iterated_to()
+            self.current_iteration_value.set(value_iterated_to)
+            # we do this one time only
+            self.total_count_to_prev_index = self.total_count_to_current_index
+            return self.current_iteration_value
+
+        raise StopIteration()
+
+    @abstractmethod
+    def reached_iteration_level(self):
+        pass
+
+    @abstractmethod
+    def increment_iteration_level(self):
+        pass
+
+    def increment_sub_bucket(self):
+        self.fresh_sub_bucket = True
+        self.current_index += 1
+        self.value_at_index = self.histogram.get_value_from_index(self.current_index)
+        self.value_at_next_index = \
+            self.histogram.get_value_from_index(self.current_index + 1)
+
+    def get_value_iterated_to(self):
+        return self.histogram.get_highest_equivalent_value(self.value_at_index)
+
+    def get_percentile_iterated_to(self):
+        return (100.0 * self.total_count_to_current_index) / self.total_count
+
+    def get_percentile_iterated_from(self):
+        return (100.0 * self.total_count_to_prev_index) / self.total_count
+
+class AllValuesIterator(AbstractHdrIterator):
+    def __init__(self, histogram):
+        AbstractHdrIterator.__init__(self, histogram)
+        self.visited_index = -1
+
+    def reset(self, histogram=None):
+        AbstractHdrIterator.reset_iterator(self, histogram)
+        self.visited_index = -1
+
+    def reached_iteration_level(self):
+        return self.visited_index != self.current_index
+
+    def increment_iteration_level(self):
+        self.visited_index = self.current_index
+
+    def has_next(self):
+        if self.total_count != self.histogram.total_count:
+            raise HdrConcurrentModificationException()
+        return self.current_index < self.histogram.counts_len - 1
+
+class RecordedIterator(AllValuesIterator):
     '''Provide a means of iterating through all recorded histogram values
     using the finest granularity steps supported by the underlying representation.
     The iteration steps through all non-zero recorded value counts,
     and terminates when all recorded histogram values are exhausted.
     '''
-    def next(self):
-        while True:
-            self.move_next()
-            if self.count_at_index:
-                break
-        return self.update_values()
+    def reached_iteration_level(self):
+        current_count = self.histogram.get_count_at_index(self.current_index)
+        return current_count and self.visited_index != self.current_index
 
-class HdrLiLoIterator(HdrIterator):
+class AbstractLiLoIteratortype(AbstractHdrIterator):
     '''Linear/Log iterator common parent class
     '''
     def __init__(self, histogram, next_value_report_lev):
-        HdrIterator.__init__(self, histogram)
+        AbstractHdrIterator.__init__(self, histogram)
         self.next_value_report_lev = next_value_report_lev
         self.next_value_report_lev_lowest_eq = \
             histogram.get_lowest_equivalent_value(next_value_report_lev)
-        self.count_added_in_this_iter_step = 0
 
-    def move_next_value(self):
-        pass
+    def reset(self, histogram, next_value_report_lev):
+        AbstractHdrIterator.reset_iterator(self, histogram)
+        if next_value_report_lev:
+            self.next_value_report_lev = next_value_report_lev
+        self.next_value_report_lev_lowest_eq = \
+            self.histogram.get_lowest_equivalent_value(next_value_report_lev)
 
-    def peek_next_value_from_index(self):
-        # get the indices for teh next bucket
-        bucket_index = self.bucket_index
-        sub_bucket_index = self.sub_bucket_index + 1
-        if sub_bucket_index >= self.histogram.sub_bucket_count:
-            sub_bucket_index = self.histogram.sub_bucket_half_count
-            bucket_index += 1
-        return self.histogram.get_value_from_index(bucket_index, sub_bucket_index)
+    def has_next(self):
+        if AbstractHdrIterator.has_next(self):
+            return True
+        # If next iterate does not move to the next sub bucket index (which is empty if
+        # if we reached this point), then we are not done iterating... Otherwise we're done.
+        return self.next_value_report_lev_lowest_eq < self.value_at_next_index
 
-    def next(self):
-        self.count_added_in_this_iter_step = 0
-        if self.has_next() or \
-           self.peek_next_value_from_index() > self.next_value_report_lev_lowest_eq:
-            while True:
-                if self.value_from_index >= self.next_value_report_lev_lowest_eq or \
-                   not self.has_next():
-                    self.move_next_value()
-                    self.next_value_report_lev_lowest_eq = \
-                        self.histogram.get_lowest_equivalent_value(self.next_value_report_lev)
-                    return self.highest_equivalent_value
-                self.move_next()
-                self.update_values()
-                self.count_added_in_this_iter_step += self.count_at_index
-        raise StopIteration()
+    def reached_iteration_level(self):
+        return self.value_at_index >= self.next_value_report_lev_lowest_eq
 
-class HdrLinearIterator(HdrLiLoIterator):
+    def get_value_iterated_to(self):
+        return self.next_value_report_lev
+
+class LinearIterator(AbstractLiLoIteratortype):
     '''Provide a means of iterating through histogram values using linear steps.
 
     The iteration is performed in steps of value_units_per_bucket in size,
     terminating when all recorded histogram values are exhausted.
     '''
     def __init__(self, histogram, value_units_per_bucket):
-        HdrLiLoIterator.__init__(self, histogram, value_units_per_bucket)
+        AbstractLiLoIteratortype.__init__(self, histogram, value_units_per_bucket)
         self.value_units_per_bucket = value_units_per_bucket
 
-    def move_next_value(self):
-        self.next_value_report_lev += self.value_units_per_bucket
+    def reset(self, histogram=None, value_units_per_bucket=0):
+        AbstractLiLoIteratortype.reset(self, histogram, value_units_per_bucket)
+        if value_units_per_bucket:
+            self.value_units_per_bucket = value_units_per_bucket
 
-class HdrLogIterator(HdrLiLoIterator):
+    def increment_iteration_level(self):
+        self.next_value_report_lev += self.value_units_per_bucket
+        self.next_value_report_lev_lowest_eq = \
+            self.histogram.get_lowest_equivalent_value(self.next_value_report_lev)
+
+class LogIterator(AbstractLiLoIteratortype):
     '''Provide a means of iterating through histogram values at logarithmically
     increasing levels.
 
@@ -134,13 +242,20 @@ class HdrLogIterator(HdrLiLoIterator):
     recorded histogram values are exhausted.
     '''
     def __init__(self, histogram, value_units_first_bucket, log_base):
-        HdrLiLoIterator.__init__(self, histogram, value_units_first_bucket)
+        AbstractLiLoIteratortype.__init__(self, histogram, value_units_first_bucket)
         self.log_base = log_base
 
-    def move_next_value(self):
-        self.next_value_report_lev *= self.log_base
+    def reset(self, histogram=None, value_units_first_bucket=0, log_base=0):
+        AbstractLiLoIteratortype.reset(self, histogram, value_units_first_bucket)
+        if log_base:
+            self.log_base = log_base
 
-class HdrPercentileIterator(HdrIterator):
+    def increment_iteration_level(self):
+        self.next_value_report_lev *= self.log_base
+        self.next_value_report_lev_lowest_eq = \
+            self.histogram.get_lowest_equivalent_value(self.next_value_report_lev)
+
+class PercentileIterator(AbstractHdrIterator):
     '''Provide a means of iterating through histogram values according to
     percentile levels
 
@@ -148,50 +263,49 @@ class HdrPercentileIterator(HdrIterator):
     distance to 100% according to the ticks_per_half_distance parameter,
     ultimately reaching 100% when all recorded histogram values are exhausted.
     '''
-    def __init__(self, histogram, ticks_per_half_distance):
-        HdrIterator.__init__(self, histogram)
-        self.ticks_per_half_distance = ticks_per_half_distance
+    def __init__(self, histogram, percentile_ticks_per_half_distance):
+        AbstractHdrIterator.__init__(self, histogram)
+        self.percentile_ticks_per_half_distance = percentile_ticks_per_half_distance
         self.percentile_to_iterate_to = 0
-        self.target_count_at_percentile = 0
-        self.percentile = 0
-        self.seen_last_value = False
-        self.total_count = self.histogram.get_total_count()
+        self.percentile_to_iterate_from = 0
+        self.reached_last_recorded_value = False
 
-    def _ret_last(self):
-        if self.seen_last_value:
-            raise StopIteration()
-        self.seen_last_value = True
-        self.percentile = 100.0
-        return self.highest_equivalent_value
+    def reset(self, histogram=None, percentile_ticks_per_half_distance=0):
+        AbstractHdrIterator.reset_iterator(self, histogram)
+        if percentile_ticks_per_half_distance:
+            self.percentile_ticks_per_half_distance = percentile_ticks_per_half_distance
+        self.percentile_to_iterate_to = 0
+        self.percentile_to_iterate_from = 0
+        self.reached_last_recorded_value = False
 
-    def next(self):
-        if not self.has_next():
-            return self._ret_last()
+    def has_next(self):
+        if AbstractHdrIterator.has_next(self):
+            return True
 
-        # on first iteration move to next
-        if self.sub_bucket_index == -1:
-            self.move_next()
+        # We want one additional last step to 100%
+        if not self.reached_last_recorded_value and self.total_count:
+            self.percentile_to_iterate_to = 100.0
+            self.reached_last_recorded_value = True
+            return True
+        return False
 
-        while True:
-            if self.count_at_index:
-                # Note that this test
-                # current_percentile = (100.0 * self.count_to_index) / self.total_count
-                # if current_percentile >= self.percentile_to_iterate_to:
-                # will not work in all rounding cases because of how the target
-                # count is calculated with a + 0.5
-                # So we need to test the same way as get_value_at_percentile
-                # so that the UT will show the same value between
-                # a percentile iteration and a direct get_value_at_percentile
-                if self.count_to_index >= self.target_count_at_percentile:
-                    self.percentile = self.percentile_to_iterate_to
-                    half_distance = math.pow(2,
-                                             (math.log(100 /
-                                                       (100.0 - (self.percentile_to_iterate_to)))
-                                              /
-                                              math.log(2)) + 1)
-                    percentile_reporting_ticks = self.ticks_per_half_distance * half_distance
-                    self.percentile_to_iterate_to += 100.0 / percentile_reporting_ticks
-                    self.target_count_at_percentile = \
-                        self.histogram.get_target_count_at_percentile(self.percentile_to_iterate_to)
-                    return self.update_values()
-            self.move_next()
+    def increment_iteration_level(self):
+        self.percentile_to_iterate_from = self.percentile_to_iterate_to
+        percentile_gap = 100.0 - (self.percentile_to_iterate_to)
+        if percentile_gap:
+            half_distance = math.pow(2,
+                                     (math.log(100 / percentile_gap) / math.log(2)) + 1)
+            percentile_reporting_ticks = self.percentile_ticks_per_half_distance * half_distance
+            self.percentile_to_iterate_to += 100.0 / percentile_reporting_ticks
+
+    def reached_iteration_level(self):
+        if self.count_at_this_value == 0:
+            return False
+        current_percentile = (100.0 * self.total_count_to_current_index) / self.total_count
+        return current_percentile >= self.percentile_to_iterate_to
+
+    def get_percentile_iterated_to(self):
+        return self.percentile_to_iterate_to
+
+    def get_percentile_iterated_from(self):
+        return self.percentile_to_iterate_from

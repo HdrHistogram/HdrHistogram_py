@@ -1,6 +1,9 @@
 '''
-A port to python of the hdr_histogram code from
-https://github.com/HdrHistogram/HdrHistogram_c (C version)
+A pure python version of the hdr_histogram code
+
+Ported from
+https://github.com/HdrHistogram/HdrHistogram (Java)
+https://github.com/HdrHistogram/HdrHistogram_c (C)
 
 Written by Alec Hothan
 Apache License 2.0
@@ -8,11 +11,11 @@ Apache License 2.0
 '''
 import math
 import sys
-from hdrh.iterators import HdrIterator
-from hdrh.iterators import HdrRecordedIterator
-from hdrh.iterators import HdrPercentileIterator
-from hdrh.iterators import HdrLinearIterator
-from hdrh.iterators import HdrLogIterator
+from hdrh.iterators import AllValuesIterator
+from hdrh.iterators import RecordedIterator
+from hdrh.iterators import PercentileIterator
+from hdrh.iterators import LinearIterator
+from hdrh.iterators import LogIterator
 from hdrh.codec import HdrHistogramEncoder
 
 def get_bucket_count(value, subb_count, unit_mag):
@@ -53,6 +56,8 @@ class HdrHistogram(object):
         self.total_count = 0
         self.min_value = sys.maxint
         self.max_value = 0
+        self.int_to_double_conversion_ratio = 1.0
+
         # to encode this histogram into a compressed/base64 format ready
         # to be exported
         self.encoder = HdrHistogramEncoder(self, b64_wrap)
@@ -130,7 +135,10 @@ class HdrHistogram(object):
                 return True
             value -= expected_interval
 
-    def get_count_at_index(self, bucket_index, sub_bucket_index):
+    def get_count_at_index(self, index):
+        return self.counts[index]
+
+    def get_count_at_sub_bucket(self, bucket_index, sub_bucket_index):
         # Calculate the index for the first entry in the bucket:
         # (The following is the equivalent of ((bucket_index + 1) * subBucketHalfCount) )
         bucket_base_index = (bucket_index + 1) << self.sub_bucket_half_count_magnitude
@@ -141,23 +149,32 @@ class HdrHistogram(object):
         counts_index = bucket_base_index + offset_in_bucket
         return self.counts[counts_index]
 
-    def get_value_from_index(self, bucket_index, sub_bucket_index):
+    def get_value_from_sub_bucket(self, bucket_index, sub_bucket_index):
         return sub_bucket_index << (bucket_index + self.unit_magnitude)
+
+    def get_value_from_index(self, index):
+        bucket_index = (index >> self.sub_bucket_half_count_magnitude) - 1
+        sub_bucket_index = (index & (self.sub_bucket_half_count - 1)) + \
+            self.sub_bucket_half_count
+        if bucket_index < 0:
+            sub_bucket_index -= self.sub_bucket_half_count
+            bucket_index = 0
+        return self.get_value_from_sub_bucket(bucket_index, sub_bucket_index)
 
     def get_lowest_equivalent_value(self, value):
         bucket_index = self._get_bucket_index(value)
         sub_bucket_index = self._get_sub_bucket_index(value, bucket_index)
 
-        lowest_equivalent_value = self.get_value_from_index(bucket_index,
-                                                            sub_bucket_index)
+        lowest_equivalent_value = self.get_value_from_sub_bucket(bucket_index,
+                                                                 sub_bucket_index)
         return lowest_equivalent_value
 
     def get_highest_equivalent_value(self, value):
         bucket_index = self._get_bucket_index(value)
         sub_bucket_index = self._get_sub_bucket_index(value, bucket_index)
 
-        lowest_equivalent_value = self.get_value_from_index(bucket_index,
-                                                            sub_bucket_index)
+        lowest_equivalent_value = self.get_value_from_sub_bucket(bucket_index,
+                                                                 sub_bucket_index)
         if sub_bucket_index >= self.sub_bucket_count:
             bucket_index += 1
         size_of_equivalent_value_range = 1 << (self.unit_magnitude + bucket_index)
@@ -166,7 +183,7 @@ class HdrHistogram(object):
         return next_non_equivalent_value - 1
 
     def get_target_count_at_percentile(self, percentile):
-        requested_percentile = percentile if percentile < 100.0 else 100.0
+        requested_percentile = min(percentile, 100.0)
         count_at_percentile = int(((requested_percentile / 100) * self.total_count) + 0.5)
         return max(count_at_percentile, 1)
 
@@ -178,13 +195,15 @@ class HdrHistogram(object):
         Returns:
             the value for the given percentile
         '''
-        itr = iter(self)
         count_at_percentile = self.get_target_count_at_percentile(percentile)
         total = 0
-        for value in itr:
-            total += itr.count_at_index
+        for index in xrange(self.counts_len):
+            total += self.get_count_at_index(index)
             if total >= count_at_percentile:
-                return self.get_highest_equivalent_value(value)
+                value_at_index = self.get_value_from_index(index)
+                if percentile:
+                    return self.get_highest_equivalent_value(value_at_index)
+                return self.get_lowest_equivalent_value(value_at_index)
         return 0
 
     def get_percentile_to_value_dict(self, percentile_list):
@@ -197,15 +216,15 @@ class HdrHistogram(object):
             a dict of percentile values indexed by the percentile
         '''
         result = {}
-        itr = iter(self)
         total = 0
         percentile_list_index = 0
         count_at_percentile = 0
         # remove dups and sort
         percentile_list = list(set(percentile_list))
         percentile_list.sort()
-        for value in itr:
-            total += itr.count_at_index
+
+        for index in xrange(self.counts_len):
+            total += self.get_count_at_index(index)
             while True:
                 # recalculate target based on next requested percentile
                 if not count_at_percentile:
@@ -215,10 +234,14 @@ class HdrHistogram(object):
                     percentile_list_index += 1
                     if percentile > 100:
                         return result
-                    count_at_percentile = int(((percentile / 100) * self.total_count) + 0.5)
-                    count_at_percentile = max(count_at_percentile, 1)
+                    count_at_percentile = self.get_target_count_at_percentile(percentile)
+
                 if total >= count_at_percentile:
-                    result[percentile] = self.get_highest_equivalent_value(value)
+                    value_at_index = self.get_value_from_index(index)
+                    if percentile:
+                        result[percentile] = self.get_highest_equivalent_value(value_at_index)
+                    else:
+                        result[percentile] = self.get_lowest_equivalent_value(value_at_index)
                     count_at_percentile = 0
                 else:
                     break
@@ -268,8 +291,8 @@ class HdrHistogram(object):
             return 0.0
         total = 0
         itr = self.get_recorded_iterator()
-        for _ in itr:
-            total += itr.count_at_index * self._hdr_median_equiv_value(itr.value_from_index)
+        for item in itr:
+            total += itr.count_at_this_value * self._hdr_median_equiv_value(item.value_iterated_to)
         return float(total) / self.total_count
 
     def get_stddev(self):
@@ -277,14 +300,16 @@ class HdrHistogram(object):
             return 0.0
         mean = self.get_mean_value()
         geometric_dev_total = 0.0
-        itr = self.get_recorded_iterator()
-        for _ in itr:
-            dev = (self._hdr_median_equiv_value(itr.value_from_index) * 1.0) - mean
-            geometric_dev_total += (dev * dev) * itr.count_at_index
+        for item in self.get_recorded_iterator():
+            dev = (self._hdr_median_equiv_value(item.value_iterated_to) * 1.0) - mean
+            geometric_dev_total += (dev * dev) * item.count_added_in_this_iter_step
         return math.sqrt(geometric_dev_total / self.total_count)
 
     def add_bucket_counts(self, bucket_counts):
-        '''Add a list of bucket/sub-bucket counts to the histogram
+        '''Add a list of bucket/sub-bucket counts to the histogram (deprecated).
+
+        This method is deprecated and is replaced by the standard HDR Histogram
+        V1 encoding/decoding routines (see codec.py)
 
         Args:
             bucket_counts: must be a dict with the following content:
@@ -333,22 +358,22 @@ class HdrHistogram(object):
     def __iter__(self):
         '''Returns the recorded iterator if iter(self) is called
         '''
-        return HdrRecordedIterator(self)
+        return RecordedIterator(self)
 
     def get_all_values_iterator(self):
-        return HdrIterator(self)
+        return AllValuesIterator(self)
 
     def get_recorded_iterator(self):
-        return HdrRecordedIterator(self)
+        return RecordedIterator(self)
 
     def get_percentile_iterator(self, ticks_per_half_distance):
-        return HdrPercentileIterator(self, ticks_per_half_distance)
+        return PercentileIterator(self, ticks_per_half_distance)
 
     def get_linear_iterator(self, value_units_per_bucket):
-        return HdrLinearIterator(self, value_units_per_bucket)
+        return LinearIterator(self, value_units_per_bucket)
 
     def get_log_iterator(self, value_units_first_bucket, log_base):
-        return HdrLogIterator(self, value_units_first_bucket, log_base)
+        return LogIterator(self, value_units_first_bucket, log_base)
 
     def encode(self):
         '''Encode this histogram

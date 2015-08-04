@@ -1,4 +1,10 @@
 '''
+A pure python version of the hdr_histogram code
+
+Ported from
+https://github.com/HdrHistogram/HdrHistogram (Java)
+https://github.com/HdrHistogram/HdrHistogram_c (C)
+
 Coding / Decoding of histograms using the
 HdrHistogram V1 compressed transportable format
 

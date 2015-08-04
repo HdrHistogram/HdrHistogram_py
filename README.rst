@@ -2,11 +2,10 @@
 Overview
 ========
 
-High Dynamic Range Histogram python library
+High Dynamic Range Histogram pure python implementation
 
-This repository contains a port/rewrite in python of portions of the HDR Histogram
-library augmented with a few extensions to support an accurate aggregation of
-distributed histograms (see details below).
+This repository contains a port to python of portions of the HDR Histogram
+library
 
 
 Acknowledgements
@@ -16,18 +15,66 @@ The python code was directly inspired from the HDR Histogram C library
 that was residing in the github wrk2 repository:
 https://github.com/giltene/wrk2/blob/master/src/hdr_histogram.c
 
-The original HDR Histogram in Java is from Gil Tene:
+The original HDR Histogram in Java and C:
 https://github.com/HdrHistogram/HdrHistogram.git
-
-The python test code was copied from portions of the C and Java implementation
 https://github.com/HdrHistogram/HdrHistogram_c.git
 
+
+Installation
+------------
+Pre-requisites:
+
+Make sure you have python 2.7 and pip installed
+
+Binary installation
+^^^^^^^^^^^^^^^^^^^
+
+.. code::
+
+    pip install hdrhistogram
+
+Source code installation and Unit Testing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Install the unit test automation harness tox and hdrhistogram from github
+
+.. code::
+
+    pip install tox
+    # cd to the proper location to clone the repository
+    git clone https://github.com/ahothan/hdrhistogram.git
+    cd hdrhistogram
+
+Run the unit test using tox to execute:
+
+- flake8 for syntax and indentation checking
+- the python unit test code
+
+The first run will take more time as tox will setup the execution environment and download the necessary packages:
+
+.. code::
+
+    $ tox
+    GLOB sdist-make: /openstack/pyhdr/hdrhistogram/setup.py
+    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.0.4.zip
+    py27 installed: flake8==2.4.1,hdrhistogram==0.0.4,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    py27 runtests: PYTHONHASHSEED='311216085'
+    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram/.tox/py27/tmp
+    .........................
+    25 passed in 3.22 seconds
+    pep8 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.0.4.zip
+    pep8 installed: flake8==2.4.1,hdr-histogram==0.1,hdrhistogram==0.0.4,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    pep8 runtests: PYTHONHASHSEED='311216085'
+    pep8 runtests: commands[0] | flake8 hdrh test
+    ___________________________________________________________________ summary ____________________________________________________________________
+      py27: commands succeeded
+      pep8: commands succeeded
+      congratulations :)
+    $
 
 Aggregation of Distributed Histograms
 -------------------------------------
 
-Problem Statement
-^^^^^^^^^^^^^^^^^
 Aggregation of multiple histograms into 1 is useful in cases where tools
 that generate these individual histograms have to run in a distributed way in
 order to scale sufficiently.
@@ -46,109 +93,32 @@ So there are 2 problems to solve:
 
 - find a way to transport all these histograms into a central place
 
-This library only provides a solution for the aggregation part of the problem:
+This library provides a solution for the aggregation part of the problem:
 
-- propose a format describing what histogram information needs to be sent to the aggregator
+- reuse the HDR histogram compression format version 1 to encode and compress a complete histogram that can be sent over the wire to the aggregator
 
-- provide python APIs to properly aggregate all these histograms into 1
+- provide python APIs to easily and efficiently:
 
-Simply aggregating a summary such as a set of latencies at percentile list is not sufficient because
-it is not correct to simply average all percentile values coming from all the sources.
-If we take the simple example of 2 sources that each produce the following results:
+    - compress an histogram instance into a transportable string
+    - decompress a compressed histogram and add it to an existing histogram
 
-Source 1:
-
-- 20 seconds at 50 percentile
-
-- 21 seconds at 90 percentile
-
-Source 2:
-
-- 4 seconds at 50 percentile
-
-- 5 seconds at 90 percentile
-
-A naive aggregation would be to average the 2 sets of values and end up with:
-
-- (20+4)/2 = 12 seconds at 50 percentile
-
-- (21+5)/2 = 13 seconds at 90 percentile
-
-The mere fact that a 21 second latency at 90 percentile has been reduced to 13 seconds is a glaring proof that averaging values at same latency is incorrect.
-Weighting each set by the number of total samples is not correct either.
-
-
-
-Proposed Solution
-^^^^^^^^^^^^^^^^^
-As the above simple example may have hinted, the only correct way of aggregating multiple histograms
-is to add same-bucket counters, assuming all histograms have the same bucket structure
-(meaning same dynamic range and same precision digits).
-This solution defines a description of the information needed from each histogram source in order to aggregate all of them into 1 aggregate histogram that represents faithfully the state of the entire system.
-Each source must send the list of all bucket/sub-bucket counts so the aggregator can add all the counts.
-
-Because the number of empty buckets generally vastly outnumber non-zero buckets, it is interesting to only
-forward non-zero buckets in order to minimize the amount of information transferred.
-As an example, a typical run with 27 buckets x 2048 sub-buckets (which corresponds to the default wrk2 configuration) yields about 100 non-zero buckets.
-
-
-Histogram JSON Format
-^^^^^^^^^^^^^^^^^^^^^
-Example of JSON document:
-
-.. code::
-
-    {
-        "buckets": 27,
-        "sub_buckets": 2048,
-        "digits": 3,
-        "max_latency": 86400000000,
-        "min": 89151,
-        "max": 209664,
-        "counters": [
-            6, [1295, 1, 1392, 1, 1432, 1, 1435, 1, 1489, 1, 1493, 1, 1536, 1, 1553, 1,
-                1560, 1, 1574, 1, 1591, 1, 1615, 1, 1672, 1, 1706, 1, 1738, 1, 1812, 1,
-                1896, 1],
-            7, [1559, 1, 1590, 1, 1638, 1]]
-    }
-
-The "counters" value is a list of bucket index and list of sub-bucket index, counter values.
-
-The "buckets", "sub_buckets", "digits" and "max_latency" keys are optional. If present, sanity check will be performed to make sure that the target histogram will have the same number of buckets and sub-buckets.
-When a source starts streaming histogram buckets, it is recommended to send the first JSON document with all fields and subsequent ones without the optional fields (to save bandwidth).
-
-API Extensions
---------------
-Available APIs are similar to the original HdrHistogram code (Java or C) except for the following functions:
-
-- HdrHistogram.add_bucket_counts() to add a new set of buckets to a given histogram.
-
-- HdrHistogram.get_percentile_to_value_dict() to get the values for a list of percentile values.
-
-Unit Testing
-------------
-
-You need tox to be installed.
-Just run tox from the repository top folder to execute:
-
-- flake8 for syntax and indentation checking
-
-- the python unit test code
-
+Refer to the unit test code (test/test_hdrhistogram.py) to see how these APIs can be used.
 
 Limitations and Caveats
 -----------------------
 
-The latest features and bug fixes of the original HDR histogram library are
-likely not available in this python port.
+The latest features and bug fixes of the original HDR histogram library may not be available in this python port.
+Notable features/APIs not yet implemented:
 
-Likewise, as stated above, not all APIs/methods will be available in this python version as the original goal was to satisfy only the initial requirements for only a subset of the APIs (sufficient to do histogram aggregation).
+- concurrency support (AtomicHistogram, ConcurrentHistogram...)
+- histogram auto-resize
+- recorder
 
 Licensing
 ---------
 
 This code is licensed under Apache License 2.0.
-The original implementation in Java (https://github.com/giltene/wrk2.git) is licensed under CCO 1.0
+The original implementation in Java is licensed under CCO 1.0
 (http://creativecommons.org/publicdomain/zero/1.0/)
 
 Contribution
