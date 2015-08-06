@@ -350,7 +350,10 @@ class HdrHistogramEncoder(object):
             the b64 encoded wire encoding of the histogram (as a string)
             or the compressed payload (as a string, if b64 wrappinb is disabled)
         '''
-        cpayload = self.payload.compress()
+        # only compress the first non zero buckets
+        relevant_length = \
+            self.histogram.get_counts_array_index(self.histogram.max_value) + 1
+        cpayload = self.payload.compress(relevant_length)
         if self.b64_wrap:
             self.header.length = len(cpayload)
             hdr_stringio = HdrStringIO(self.header, cpayload)

@@ -535,8 +535,18 @@ HDR_PAYLOAD_COUNTS = 1000
 HDR_PAYLOAD_PARTIAL_COUNTS = HDR_PAYLOAD_COUNTS / 2
 
 def fill_counts(payload, last_index, start=0):
+    # note that this function should only be used for
+    # raw payload level operations, shoud not be used for payloads that are
+    # created from a histogram, see fill_hist_counts
     for index in xrange(start, last_index):
         payload.counts[index] = index
+
+def fill_hist_counts(histogram, last_index, start=0):
+    # fill the counts of a given histogram and update the min/max/total count
+    # accordingly
+    for index in xrange(start, last_index):
+        value_from_index = histogram.get_value_from_index(index)
+        histogram.record_value(value_from_index, index)
 
 def check_counts(payload, last_index, multiplier=1, start=0):
     for index in xrange(start, last_index):
@@ -616,23 +626,24 @@ def check_hdr_encode(digits,
     if fill_count_percent:
         fill_start_index = (fill_start_percent * histogram.counts_len) / 100
         fill_to_index = fill_start_index + (fill_count_percent * histogram.counts_len) / 100
-        fill_counts(histogram.encoder.payload, fill_to_index, fill_start_index)
+        fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
     assert(len(b64) == expected_compressed_length)
+    # print('%d exp %d' % (len(b64), expected_compressed_length))
 
 # A list of call arguments to check_hdr_encode
 # digits  b64_wrap expected_compressed_length, fill_start%, fill_count%
 ENCODE_ARG_LIST = (
     # best case when all counters are zero
-    (3, True, 385, 0, 0),
-    (3, False, 276, 0, 0),
-    (2, True, 126, 0, 0),
-    (2, False, 85, 0, 0),
+    (3, True, 57, 0, 0),        # 385 = size when compressing entire counts array
+    (3, False, 32, 0, 0),       # 276   (instead of truncating trailing zero buckets)
+    (2, True, 57, 0, 0),        # 126
+    (2, False, 32, 0, 0),       # 85
     # typical case when all counters are aggregated in a small contiguous area
-    (3, True, 17172, 30, 20),
-    (3, False, 12712, 30, 20),
-    (2, True, 2212, 30, 20),
-    (2, False, 1630, 30, 20),
+    (3, True, 16658, 30, 20),   # 17172
+    (3, False, 12330, 30, 20),  # 12712
+    (2, True, 2123, 30, 20),    # 2212
+    (2, False, 1563, 30, 20),   # 1630
     # worst case when all counters are different
     (3, True, 81689, 0, 100),
     (3, False, 60501, 0, 100),
@@ -655,7 +666,7 @@ def check_hdr_codec_b64(b64_wrap):
     # counters should remain zero
     check_counts(histogram.encoder.payload, histogram.counts_len, multiplier=0)
     # fill up the histogram
-    fill_counts(histogram.encoder.payload, histogram.counts_len)
+    fill_hist_counts(histogram, histogram.counts_len)
     encoded = histogram.encode()
     histogram.decode_and_add(encoded)
     check_counts(histogram.encoder.payload, histogram.counts_len, multiplier=2)
@@ -705,4 +716,3 @@ def test_hdr_interop():
 
     # check the percentiles. min, max values match
     check_percentiles(histogram, corrected_histogram)
-
