@@ -131,6 +131,9 @@ class HdrDecompressedPayload(object):
         counts_array_len = self.payload_len - HdrPayloadFactory.get_payload_header_size()
         return counts_array_len / sizeof(c_longlong)
 
+    def dump(self):
+        dump_payload(self.counts, self.payload_len)
+
 class HdrPayloadFactory(object):
     # a dict of HdrPayload classes indexed by the number of counters in the class
     payload_classes = {}
@@ -188,15 +191,34 @@ class HdrPayloadFactory(object):
                     data = ctypes.string_at(ctypes.byref(self), self.payload_len)
                     return zlib.compress(data)
 
-                def add(self, dpayload):
+                def add(self, dpayload, hist):
                     '''Add counters of a decompressed payload to this payload
+                    and update the histogram total count, min, max
                     '''
-                    # faster to get rid of all field accesses using dots
-                    to_counts = self.counts
-                    from_counts = dpayload.counts
-                    for index in xrange(dpayload.get_decompressed_counters_count()):
-                        if from_counts[index]:
-                            to_counts[index] += from_counts[index]
+                    counters_count = dpayload.get_decompressed_counters_count()
+
+                    if counters_count:
+                        # faster to get rid of all field accesses using dots
+                        to_counts = self.counts
+                        from_counts = dpayload.counts
+                        total_added = 0
+                        min_non_zero_index = -1
+                        max_index = -1
+                        for index in xrange(counters_count):
+                            delta = from_counts[index]
+                            if delta:
+                                to_counts[index] += delta
+                                total_added += delta
+                                max_index = index
+                                if min_non_zero_index < 0 and index:
+                                    min_non_zero_index = index
+                        if hist:
+                            hist.adjust_internal_tacking_values(min_non_zero_index,
+                                                                max_index,
+                                                                total_added)
+
+                def dump(self):
+                    dump_payload(self.counts, sizeof(self))
 
             # Rename the class after the counters count
                     # set the class name to reflect the count
@@ -421,4 +443,30 @@ class HdrHistogramEncoder(object):
         '''
         cpayload = self._decode_b64(encoded_histogram)
         self.dpayload.decompress(cpayload)
-        self.payload.add(self.dpayload)
+        self.payload.add(self.dpayload, self.histogram)
+
+def _dump_series(start, stop, count):
+    if stop <= start + 1:
+        # single index range
+        print '[%06d] %d' % (start, count)
+    else:
+        print '[%06d] %d (%d identical)' % (start, count, stop - start)
+
+def dump_payload(counts, payload_len):
+    max_index = (payload_len - HdrPayloadFactory.get_payload_header_size()) / sizeof(c_longlong)
+    print 'counts array size = %d entries' % (max_index)
+    if not max_index:
+        return
+    series_start_index = 0
+    current_series_count = counts[0]
+    index = 1
+    for index in xrange(1, max_index):
+        if counts[index] != current_series_count:
+            # dump the current series
+            _dump_series(series_start_index, index, current_series_count)
+            # start a new series
+            current_series_count = counts[index]
+            series_start_index = index
+    # there is always a last series to dump
+    _dump_series(series_start_index, index, counts[index])
+    print '[%06d] --END--' % (index + 1)
