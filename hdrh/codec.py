@@ -16,11 +16,9 @@ from ctypes import BigEndianStructure
 from ctypes import c_int
 from ctypes import c_longlong
 from ctypes import sizeof
-from StringIO import StringIO as StringIo
 import ctypes
 import base64
 import zlib
-import cStringIO
 
 V1_ENCODING_COOKIE = 0x1c849301 + (8 << 4)
 V1_COMPRESSION_COOKIE = 0x1c849302 + (8 << 4)
@@ -278,34 +276,6 @@ class HdrPayloadFactory(object):
         # counters in the provided class and from_value will raise
         # ValueError: Buffer size too small
 
-class HdrStringIO(StringIo):
-    '''The purpose of this read only stream is to provide bytes from 2
-    objects in sequence without copying any bytes.
-    It is meant to be provided as an input to base64.encode() so we can get the
-    b64 encoded string for the 2 objects
-    Args:
-        hdr a ctypes structure object
-        payload a string containing the compressed payload (as returned by
-                zlib.compress()) but could be any string for this class
-    '''
-    def __init__(self, hdr, compressed_payload):
-        self.hdr_str = ctypes.string_at(ctypes.byref(hdr), sizeof(hdr))
-        StringIo.__init__(self, compressed_payload)
-
-    def read(self, count=-1):
-        if self.hdr_str:
-            if len(self.hdr_str) <= count:
-                hdr_str = self.hdr_str
-                self.hdr_str = None
-            else:
-                # should never happen since hdr should be pretty small
-                # so make this simple even if unoptimized
-                hdr_str = self.hdr_str[:count]
-                self.hdr_str = self.hdr_str[count:]
-            return hdr_str
-        res = StringIo.read(self, 4)
-        return res
-
 class HdrHistogramEncoder(object):
     '''An encoder class for histograms, only supports V1 encoding.
     The purpose of this encoder is to hold all the resources related to
@@ -356,12 +326,9 @@ class HdrHistogramEncoder(object):
         cpayload = self.payload.compress(relevant_length)
         if self.b64_wrap:
             self.header.length = len(cpayload)
-            hdr_stringio = HdrStringIO(self.header, cpayload)
-            output = cStringIO.StringIO()
-            # unfortunately this API only encodes using the "standard" base64
-            # format (one with lines limited to 57 characters and with CRLF)
-            base64.encode(hdr_stringio, output)
-            return output.getvalue()
+
+            header_str = ctypes.string_at(ctypes.byref(self.header), sizeof(self.header))
+            return base64.b64encode(''.join([header_str, cpayload]))
         return cpayload
 
     def _decode_b64(self, encoded_histogram):
@@ -384,6 +351,7 @@ class HdrHistogramEncoder(object):
             # use typecast to point to the start of the decode string with an HdrHeader pointer
             header = ctypes.cast(b64decode, ctypes.POINTER(HdrHeader)).contents
             if header.cookie != V1_COMPRESSION_COOKIE:
+                print 'hdr=%x exp=%x' % (header.cookie, V1_COMPRESSION_COOKIE)
                 raise HdrCookieException()
             if header.length != len(b64decode) - sizeof(header):
                 raise HdrLengthException()
@@ -400,7 +368,7 @@ class HdrHistogramEncoder(object):
             encoded_histogram a string containing the wire encoding of a histogram
                               such as one returned from encode()
         Returns:
-            an HdrPayload instance with all the decoded/uncompressed fields
+            an HdrDecompressedPayload instance with all the decoded/uncompressed fields
 
         Exception:
             TypeError in case of base64 decode error

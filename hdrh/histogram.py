@@ -60,11 +60,14 @@ class HdrHistogram(object):
 
         # to encode this histogram into a compressed/base64 format ready
         # to be exported
+        self.b64_wrap = b64_wrap
         self.encoder = HdrHistogramEncoder(self, b64_wrap)
         # the counters reside directly in the payload object
         # allocated by the encoder
         # so that compression for wire transfer can be done without copy
         self.counts = self.encoder.get_counts()
+        self.start_time_stamp_msec = 0
+        self.end_time_stamp_msec = 0
 
     def _clz(self, value):
         """calculate the leading zeros, equivalent to C __builtin_clzll()
@@ -400,6 +403,29 @@ class HdrHistogram(object):
         '''
         self.encoder.decode_and_add(encoded_histogram)
 
+    def decode(self, encoded_histogram):
+        '''Decode an encoded histogram and return a new histogram instance that
+        has been initialized with the decoded content
+        Return:
+            a new histogram instance representing the decoded content
+        Exception:
+            TypeError in case of base64 decode error
+            HdrCookieException:
+                the main header has an invalid cookie
+                the compressed payload header has an invalid cookie
+            HdrLengthException:
+                the decompressed size is too small for the HdrPayload structure
+                or is not aligned or is too large for the passed payload class
+            zlib.error:
+                in case of zlib decompression error
+        '''
+        hist = HdrHistogram(self.lowest_trackable_value,
+                            self.highest_trackable_value,
+                            self.significant_figures,
+                            self.b64_wrap)
+        hist.decode_and_add(encoded_histogram)
+        return hist
+
     def adjust_internal_tacking_values(self,
                                        min_non_zero_index,
                                        max_index,
@@ -435,3 +461,61 @@ class HdrHistogram(object):
         # The following is the equivalent of
         # ((sub_bucket_index  - sub_bucket_half_count) + bucket_base_index
         return bucket_base_index + offset_in_bucket
+
+    def get_start_time_stamp(self):
+        return self.start_time_stamp_msec
+
+    def set_start_time_stamp(self, time_stamp_msec):
+        '''Set the start time stamp value associated with this histogram to a given value.
+        Params:
+            time_stamp_msec the value to set the time stamp to,
+                [by convention] in msec since the epoch.
+        '''
+        self.start_time_stamp_msec = time_stamp_msec
+
+    def get_end_time_stamp(self):
+        return self.end_time_stamp_msec
+
+    def set_end_time_stamp(self, time_stamp_msec):
+        '''Set the end time stamp value associated with this histogram to a given value.
+        Params:
+            time_stamp_msec the value to set the time stamp to,
+                [by convention] in msec since the epoch.
+        '''
+        self.end_time_stamp_msec = time_stamp_msec
+
+    def add(self, other_hist):
+        highest_recordable_value = \
+            self.get_highest_equivalent_value(self.get_value_from_index(self.counts_len - 1))
+        if highest_recordable_value < other_hist.get_max_value():
+            # no auto resize available yet
+            raise IndexError("The other histogram includes values that do not fit")
+
+        if (self.bucket_count == other_hist.bucket_count) and \
+           (self.sub_bucket_count == other_hist.sub_bucket_count) and \
+           (self.unit_magnitude == other_hist.unit_magnitude):
+            # (self.get_normalizing_index_offset() ==
+            # otherHistogram.get_normalizing_index_offset()))
+            # Counts arrays are of the same length and meaning, so we can just
+            # iterate and add directly:
+            observed_other_total_count = 0
+            for index in xrange(other_hist.counts_len):
+                other_count = other_hist.get_count_at_index(index)
+                if other_count > 0:
+                    self.counts[index] += other_count
+                    observed_other_total_count += other_count
+            self.total_count += observed_other_total_count
+            self.max_value = max(self.max_value, other_hist.get_max_value())
+            self.min_value = min(self.get_min_value(), other_hist.get_min_value())
+        else:
+            # Arrays are not a direct match, so we can't just stream through and add them.
+            # Instead, go through the array and add each non-zero value found at it's proper value:
+            for index in xrange(other_hist.counts_len):
+                other_count = other_hist.get_count_at_index(index)
+                if other_count > 0:
+                    self.record_value(other_hist.get_value_from_index(index), other_count)
+
+        self.start_time_stamp_msec = \
+            min(self.start_time_stamp_msec, other_hist.start_time_stamp_msec)
+        self.end_time_stamp_msec = \
+            max(self.end_time_stamp_msec, other_hist.end_time_stamp_msec)
