@@ -21,6 +21,7 @@ Apache License 2.0
 import datetime
 import re
 import sys
+from hdrh.histogram import HdrHistogram
 
 class HistogramLogWriter(object):
 
@@ -204,7 +205,7 @@ class HistogramLogReader(object):
                 match_res = re_start_time.match(line)
                 if match_res:
                     self.start_time_sec = float(match_res.group(1))
-                    self.observed_start_time_sec = True
+                    self.observed_start_time = True
                     continue
                 match_res = re_base_time.match(line)
                 if match_res:
@@ -258,13 +259,12 @@ class HistogramLogReader(object):
 
             if start_time_stamp_to_check_range_on > range_end_time_sec:
                 return None
-
             if dest_histogram:
                 # add the interval histogram to the destination histogram
                 histogram = dest_histogram
                 histogram.decode_and_add(cpayload)
             else:
-                histogram = self.reference_histogram.decode(cpayload)
+                histogram = HdrHistogram.decode(cpayload)
                 histogram.set_start_time_stamp(absolute_start_time_stamp_sec * 1000.0)
                 histogram.set_end_time_stamp(absolute_end_time_stamp_sec * 1000.0)
             return histogram

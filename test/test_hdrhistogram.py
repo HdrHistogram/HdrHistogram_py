@@ -9,14 +9,16 @@ Written by Alec Hothan
 Apache License 2.0
 
 '''
-from hdrh.histogram import HdrHistogram
-from hdrh.codec import HdrPayloadFactory
-from zlib import error
+
 import pytest
+import zlib
+
+from hdrh.codec import HdrPayload
 from hdrh.codec import HdrCookieException
-from hdrh.codec import HdrLengthException
+from hdrh.histogram import HdrHistogram
 from hdrh.log import HistogramLogWriter
 from hdrh.log import HistogramLogReader
+
 
 # histogram __init__ values
 LOWEST = 1
@@ -541,8 +543,55 @@ def fill_counts(payload, last_index, start=0):
     # note that this function should only be used for
     # raw payload level operations, shoud not be used for payloads that are
     # created from a histogram, see fill_hist_counts
+    counts = payload.get_counts()
     for index in xrange(start, last_index):
-        payload.counts[index] = index
+        counts[index] = index
+
+def check_counts(payload, last_index, multiplier=1, start=0):
+    counts = payload.get_counts()
+    for index in xrange(start, last_index):
+        assert(counts[index] == multiplier * index)
+
+def check_hdr_payload(counter_size):
+    # Create an HdrPayload class with given counters count
+    payload = HdrPayload(counter_size, HDR_PAYLOAD_COUNTS)
+    # put some known numbers in the buckets
+    fill_counts(payload, HDR_PAYLOAD_COUNTS)
+
+    # get a compressed version of that payload
+    cpayload = payload.compress()
+    # now decompress it into a new hdr payload instance
+    dpayload = HdrPayload().decompress(cpayload)
+
+    assert(dpayload.counts_len == HDR_PAYLOAD_COUNTS)
+
+    # now verify that the counters are identical to the original
+    check_counts(dpayload, HDR_PAYLOAD_COUNTS)
+
+@pytest.mark.codec
+def test_hdr_payload():
+    # Check the payload work in all 3 supported counter sizes
+    for counter_size in [2, 4, 8]:
+        check_hdr_payload(counter_size)
+
+@pytest.mark.codec
+def test_hdr_payload_exceptions():
+    # test invalid zlib compressed buffer
+    with pytest.raises(zlib.error):
+        HdrPayload().decompress("junk data")
+
+    # unsupported word size
+    with pytest.raises(ValueError):
+        payload = HdrPayload(1, HDR_PAYLOAD_COUNTS)
+    with pytest.raises(ValueError):
+        payload = HdrPayload(1000, HDR_PAYLOAD_COUNTS)
+
+    # invalid cookie
+    payload = HdrPayload(8, HDR_PAYLOAD_COUNTS)
+    payload.payload.cookie = 12345
+    cpayload = payload.compress()
+    with pytest.raises(HdrCookieException):
+        HdrPayload().decompress(cpayload)
 
 def fill_hist_counts(histogram, last_index, start=0):
     # fill the counts of a given histogram and update the min/max/total count
@@ -551,80 +600,15 @@ def fill_hist_counts(histogram, last_index, start=0):
         value_from_index = histogram.get_value_from_index(index)
         histogram.record_value(value_from_index, index)
 
-def check_counts(payload, last_index, multiplier=1, start=0):
+def check_hist_counts(histogram, last_index, multiplier=1, start=0):
     for index in xrange(start, last_index):
-        assert(payload.counts[index] == multiplier * index)
+        assert(histogram.get_count_at_index(index) == multiplier * index)
 
-@pytest.mark.codec
-def test_hdr_payload():
-    # Create an HdrPayload class with given counters count
-    payload = HdrPayloadFactory.create_instance(HDR_PAYLOAD_COUNTS)
-    # put some known numbers in the buckets
-    fill_counts(payload, HDR_PAYLOAD_COUNTS)
-
-    # get a compressed version of that payload
-    cpayload = payload.compress()
-    # now decompress it into a new hdr payload instance
-    dpayload = HdrPayloadFactory.decompress(cpayload, payload.__class__)
-
-    assert(dpayload.get_decompressed_counters_count() == HDR_PAYLOAD_COUNTS)
-
-    # now verify that the counters are identical to the original
-    check_counts(dpayload, HDR_PAYLOAD_COUNTS)
-
-    # now add the decompressed payload to the original hdr_payload
-    payload.add(dpayload, None)
-
-    # and verify that all counters have been *2
-    check_counts(payload, HDR_PAYLOAD_COUNTS, 2)
-
-@pytest.mark.codec
-def test_hdr_payload_partial():
-    # Create an HdrPayload class with given counters count
-    payload = HdrPayloadFactory.create_instance(HDR_PAYLOAD_COUNTS)
-    # put some known numbers in the buckets
-    fill_counts(payload, HDR_PAYLOAD_COUNTS)
-
-    # get a compressed version of that payload but only with first half counters
-    cpayload = payload.compress(HDR_PAYLOAD_PARTIAL_COUNTS)
-    # now decompress it into a new hdr payload instance
-    dpayload = HdrPayloadFactory.decompress(cpayload, payload.__class__)
-
-    assert(dpayload.get_decompressed_counters_count() == HDR_PAYLOAD_PARTIAL_COUNTS)
-
-    # now verify that the partial counters are identical to the original
-    check_counts(dpayload, HDR_PAYLOAD_PARTIAL_COUNTS)
-
-    # now add the decompressed payload to the original hdr_payload
-    payload.add(dpayload, None)
-
-    # and verify that all the first partial counters have been *2
-    check_counts(payload, HDR_PAYLOAD_PARTIAL_COUNTS, 2)
-    check_counts(payload, HDR_PAYLOAD_COUNTS, start=HDR_PAYLOAD_PARTIAL_COUNTS)
-
-@pytest.mark.codec
-def test_hdr_payload_exceptions():
-    # test invalid zlib compressed buffer
-    payload = HdrPayloadFactory.create_instance(HDR_PAYLOAD_COUNTS)
-    with pytest.raises(error):
-        HdrPayloadFactory.decompress("junk data", payload.__class__)
-    # valid zlib but invalid uncompressed data
-    # destination payload class has too few counters (2)
-    cpayload = payload.compress()
-    with pytest.raises(HdrLengthException):
-        HdrPayloadFactory.decompress(cpayload, HdrPayloadFactory.get_class(2))
-
-    # invalid cookie
-    payload.cookie = 12345
-    cpayload = payload.compress()
-    with pytest.raises(HdrCookieException):
-        HdrPayloadFactory.decompress(cpayload, payload.__class__)
-
-def check_hdr_encode(digits,
-                     b64_wrap,
-                     expected_compressed_length,
-                     fill_start_percent,
-                     fill_count_percent):
+def check_hist_encode(digits,
+                      b64_wrap,
+                      expected_compressed_length,
+                      fill_start_percent,
+                      fill_count_percent):
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, digits, b64_wrap=b64_wrap)
     if fill_count_percent:
         fill_start_index = (fill_start_percent * histogram.counts_len) / 100
@@ -632,16 +616,15 @@ def check_hdr_encode(digits,
         fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
     assert(len(b64) == expected_compressed_length)
-    # print('%d exp %d' % (len(b64), expected_compressed_length))
 
 # A list of call arguments to check_hdr_encode
 # digits  b64_wrap expected_compressed_length, fill_start%, fill_count%
 ENCODE_ARG_LIST = (
     # best case when all counters are zero
-    (3, True, 56, 0, 0),        # 385 = size when compressing entire counts array
-    (3, False, 32, 0, 0),       # 276   (instead of truncating trailing zero buckets)
-    (2, True, 56, 0, 0),        # 126
-    (2, False, 32, 0, 0),       # 85
+    (3, True, 52, 0, 0),        # 385 = size when compressing entire counts array
+    (3, False, 30, 0, 0),       # 276   (instead of truncating trailing zero buckets)
+    (2, True, 52, 0, 0),        # 126
+    (2, False, 30, 0, 0),       # 85
     # typical case when all counters are aggregated in a small contiguous area
     (3, True, 16452, 30, 20),   # 17172
     (3, False, 12330, 30, 20),  # 12712
@@ -655,29 +638,45 @@ ENCODE_ARG_LIST = (
 )
 
 @pytest.mark.codec
-def test_hdr_encode():
+def test_hist_encode():
     for args in ENCODE_ARG_LIST:
-        check_hdr_encode(*args)
+        check_hist_encode(*args)
 
 @pytest.mark.codec
-def check_hdr_codec_b64(b64_wrap):
+def check_hist_codec_b64(b64_wrap):
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT, b64_wrap=b64_wrap)
     # encode with all zero counters
     encoded = histogram.encode()
     # add back same histogram
     histogram.decode_and_add(encoded)
     # counters should remain zero
-    check_counts(histogram.encoder.payload, histogram.counts_len, multiplier=0)
+    check_hist_counts(histogram, histogram.counts_len, multiplier=0)
     # fill up the histogram
     fill_hist_counts(histogram, histogram.counts_len)
     encoded = histogram.encode()
     histogram.decode_and_add(encoded)
-    check_counts(histogram.encoder.payload, histogram.counts_len, multiplier=2)
+    check_hist_counts(histogram, histogram.counts_len, multiplier=2)
 
 @pytest.mark.codec
-def test_hdr_codec():
-    check_hdr_codec_b64(True)
-    check_hdr_codec_b64(False)
+def test_hist_codec():
+    check_hist_codec_b64(True)
+    check_hist_codec_b64(False)
+
+@pytest.mark.codec
+def test_hist_codec_partial():
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
+
+    partial_histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT)
+
+    # put some known numbers in the first half buckets
+    half_count = partial_histogram.counts_len
+    fill_hist_counts(partial_histogram, half_count)
+    encoded = partial_histogram.encode()
+    histogram.decode_and_add(encoded)
+
+    # now verify that the partial counters are identical to the original
+    check_hist_counts(histogram, half_count, multiplier=1)
+    check_hist_counts(histogram, histogram.counts_len, start=half_count + 1, multiplier=0)
 
 # A list of encoded histograms as generated by the test code in HdrHistogram_c
 # encoded from the standard Hdr test histograms (load_histogram())
@@ -723,7 +722,7 @@ def test_hdr_interop():
 
 def check_decoded_hist_counts(hist, multiplier):
     assert(hist)
-    check_counts(hist.encoder.payload, hist.counts_len, multiplier)
+    check_hist_counts(hist, hist.counts_len, multiplier)
 
 HDR_LOG_NAME = 'hdr.log'
 @pytest.mark.log
@@ -774,7 +773,7 @@ JHICCUP_CHECKLISTS = [
 ]
 
 @pytest.mark.log
-def xtest_jHiccup_V1_Log():
+def test_jHiccup_v1_log():
     accumulated_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     log_reader = HistogramLogReader(JHICCUP_V1_LOG_NAME, accumulated_histogram)
 
@@ -787,6 +786,8 @@ def xtest_jHiccup_V1_Log():
         histogram_count += 1
         total_count += decoded_histogram.get_total_count()
         accumulated_histogram.add(decoded_histogram)
+        # These logs use 2-word (16-bit) counters
+        assert(decoded_histogram.get_word_size() == 2)
 
     assert(88 == histogram_count)
     assert(65964 == total_count)
