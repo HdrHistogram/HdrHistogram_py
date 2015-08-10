@@ -5,19 +5,29 @@ Overview
 High Dynamic Range Histogram pure python implementation
 
 This repository contains a port to python of portions of the HDR Histogram
-library
+library:
 
+- Basic histogram value recorging
+    - record value
+    - record value with correction for coordinated omission
+- Supports 16-bit, 32-bit and 64-bit counters
+- All histogram basic query APIs
+    - get value at percentile
+    - get total count
+    - get min value, max value, mean, standard deviation
+- All iterators are implemented: all values, recorded, percentile, linear, logarithmic
+- Text file histogram log writer and log reader
+- Histogram encoding and decoding (HdrHistogram V1 format only, V0 not supported)
+
+Histogram V1 format encoding compatibility with Java and C versions verified through unit test code.
 
 Acknowledgements
 ----------------
 
-The python code was directly inspired from the HDR Histogram C library
-that was residing in the github wrk2 repository:
-https://github.com/giltene/wrk2/blob/master/src/hdr_histogram.c
+The python code was directly ported from the original HDR Histogram Java and C libraries:
 
-The original HDR Histogram in Java and C:
-https://github.com/HdrHistogram/HdrHistogram.git
-https://github.com/HdrHistogram/HdrHistogram_c.git
+* https://github.com/HdrHistogram/HdrHistogram.git
+* https://github.com/HdrHistogram/HdrHistogram_c.git
 
 
 Installation
@@ -56,17 +66,19 @@ The first run will take more time as tox will setup the execution environment an
 
     $ tox
     GLOB sdist-make: /openstack/pyhdr/hdrhistogram/setup.py
-    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.0.4.zip
-    py27 installed: flake8==2.4.1,hdrhistogram==0.0.4,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
-    py27 runtests: PYTHONHASHSEED='311216085'
+    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.1.0.zip
+    py27 installed: flake8==2.4.1,hdrhistogram==0.1.0,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    py27 runtests: PYTHONHASHSEED='40561919'
     py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram/.tox/py27/tmp
-    .........................
-    25 passed in 3.22 seconds
-    pep8 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.0.4.zip
-    pep8 installed: flake8==2.4.1,hdr-histogram==0.1,hdrhistogram==0.0.4,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
-    pep8 runtests: PYTHONHASHSEED='311216085'
+    
+    ............................
+    28 passed in 6.40 seconds
+    
+    pep8 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.1.0.zip
+    pep8 installed: flake8==2.4.1,hdr-histogram==0.1,hdrhistogram==0.1.0,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    pep8 runtests: PYTHONHASHSEED='40561919'
     pep8 runtests: commands[0] | flake8 hdrh test
-    ___________________________________________________________________ summary ____________________________________________________________________
+    ________________________________________________________________________ summary _________________________________________________________________________
       py27: commands succeeded
       pep8: commands succeeded
       congratulations :)
@@ -108,11 +120,13 @@ Limitations and Caveats
 -----------------------
 
 The latest features and bug fixes of the original HDR histogram library may not be available in this python port.
-Notable features/APIs not yet implemented:
+List of notable features/APIs not implemented:
 
 - concurrency support (AtomicHistogram, ConcurrentHistogram...)
+- DoubleHistogram
 - histogram auto-resize
-- recorder
+- recorder function
+
 
 Licensing
 ---------

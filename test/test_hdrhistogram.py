@@ -10,6 +10,7 @@ Apache License 2.0
 
 '''
 
+import datetime
 import pytest
 import zlib
 
@@ -433,8 +434,6 @@ def check_imported_buckets(latency_data):
     assert(histogram.values_are_equivalent(histogram.get_min_value(), latency_data['min']))
     assert(histogram.values_are_equivalent(histogram.get_max_value(), latency_data['max']))
 
-# import cProfile
-
 @pytest.mark.json
 def test_imported_buckets():
     check_imported_buckets(IMPORTED_LATENCY_DATA0)
@@ -604,12 +603,15 @@ def check_hist_counts(histogram, last_index, multiplier=1, start=0):
     for index in xrange(start, last_index):
         assert(histogram.get_count_at_index(index) == multiplier * index)
 
-def check_hist_encode(digits,
+def check_hist_encode(word_size,
+                      digits,
                       b64_wrap,
                       expected_compressed_length,
                       fill_start_percent,
                       fill_count_percent):
-    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, digits, b64_wrap=b64_wrap)
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, digits,
+                             b64_wrap=b64_wrap,
+                             word_size=word_size)
     if fill_count_percent:
         fill_start_index = (fill_start_percent * histogram.counts_len) / 100
         fill_to_index = fill_start_index + (fill_count_percent * histogram.counts_len) / 100
@@ -618,23 +620,28 @@ def check_hist_encode(digits,
     assert(len(b64) == expected_compressed_length)
 
 # A list of call arguments to check_hdr_encode
-# digits  b64_wrap expected_compressed_length, fill_start%, fill_count%
 ENCODE_ARG_LIST = (
+    # word size digits  b64_wrap expected_compressed_length, fill_start%, fill_count%
     # best case when all counters are zero
-    (3, True, 52, 0, 0),        # 385 = size when compressing entire counts array
-    (3, False, 30, 0, 0),       # 276   (instead of truncating trailing zero buckets)
-    (2, True, 52, 0, 0),        # 126
-    (2, False, 30, 0, 0),       # 85
+    (8, 3, True, 52, 0, 0),        # 385 = size when compressing entire counts array
+    (8, 3, False, 30, 0, 0),       # 276   (instead of truncating trailing zero buckets)
+    (8, 2, True, 52, 0, 0),        # 126
+    (8, 2, False, 30, 0, 0),       # 85
     # typical case when all counters are aggregated in a small contiguous area
-    (3, True, 16452, 30, 20),   # 17172
-    (3, False, 12330, 30, 20),  # 12712
-    (2, True, 2096, 30, 20),    # 2212
-    (2, False, 1563, 30, 20),   # 1630
+    (8, 3, True, 16452, 30, 20),   # 17172
+    (8, 3, False, 12330, 30, 20),  # 12712
+    (8, 2, True, 2096, 30, 20),    # 2212
+    (8, 2, False, 1563, 30, 20),   # 1630
     # worst case when all counters are different
-    (3, True, 80680, 0, 100),
-    (3, False, 60501, 0, 100),
-    (2, True, 10744, 0, 100),
-    (2, False, 8048, 0, 100)
+    (8, 3, True, 80680, 0, 100),
+    (8, 3, False, 60501, 0, 100),
+    (8, 2, True, 10744, 0, 100),
+    (8, 2, False, 8048, 0, 100),
+    # worst case 32-bit and 16-bit counters
+    (4, 3, True, 76272, 0, 100),
+    (4, 2, True, 10144, 0, 100),
+    (2, 3, True, 68936, 0, 100),
+    (2, 2, True, 9144, 0, 100),
 )
 
 @pytest.mark.codec
@@ -643,8 +650,10 @@ def test_hist_encode():
         check_hist_encode(*args)
 
 @pytest.mark.codec
-def check_hist_codec_b64(b64_wrap):
-    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT, b64_wrap=b64_wrap)
+def check_hist_codec_b64(word_size, b64_wrap):
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, SIGNIFICANT,
+                             b64_wrap=b64_wrap,
+                             word_size=word_size)
     # encode with all zero counters
     encoded = histogram.encode()
     # add back same histogram
@@ -659,8 +668,9 @@ def check_hist_codec_b64(b64_wrap):
 
 @pytest.mark.codec
 def test_hist_codec():
-    check_hist_codec_b64(True)
-    check_hist_codec_b64(False)
+    for word_size in [2, 4, 8]:
+        check_hist_codec_b64(word_size, True)
+        check_hist_codec_b64(word_size, False)
 
 @pytest.mark.codec
 def test_hist_codec_partial():
@@ -677,6 +687,27 @@ def test_hist_codec_partial():
     # now verify that the partial counters are identical to the original
     check_hist_counts(histogram, half_count, multiplier=1)
     check_hist_counts(histogram, histogram.counts_len, start=half_count + 1, multiplier=0)
+
+@pytest.mark.perf
+def test_hist_dec_perf():
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, 2)
+    fill_start_index = (20 * histogram.counts_len) / 100
+    fill_to_index = fill_start_index + (30 * histogram.counts_len) / 100
+    fill_hist_counts(histogram, fill_to_index, fill_start_index)
+    b64 = histogram.encode()
+
+    # decode and add to self 1000 times
+    start = datetime.datetime.now()
+    for _ in xrange(1000):
+        histogram.decode_and_add(b64)
+    delta = datetime.datetime.now() - start
+    print delta
+
+import cProfile
+
+@pytest.mark.perf
+def test_perf_profile():
+    cProfile.runctx('test_hist_dec_perf()', globals(), locals())
 
 # A list of encoded histograms as generated by the test code in HdrHistogram_c
 # encoded from the standard Hdr test histograms (load_histogram())

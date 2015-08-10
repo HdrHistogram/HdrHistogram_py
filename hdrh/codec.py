@@ -14,9 +14,9 @@ Apache License 2.0
 '''
 from ctypes import BigEndianStructure
 from ctypes import c_ubyte
-from ctypes import c_short
-from ctypes import c_int
-from ctypes import c_longlong
+from ctypes import c_ushort
+from ctypes import c_uint
+from ctypes import c_ulonglong
 from ctypes import sizeof
 import ctypes
 import base64
@@ -47,28 +47,36 @@ class HdrLengthException(Exception):
 class HdrHistogramSettingsException(Exception):
     pass
 
+# V1 encoding header
+# The encoded compressed format is as follows:
+# base64( HdrHeader + zlibcompress(HdrPayload<bits>) )
+
 class HdrHeader(BigEndianStructure):
+    '''Header for the base64 wrapping
+    '''
     _pack_ = 1
     _fields_ = [
-        ("cookie", c_int),
-        ("length", c_int)
+        ("cookie", c_uint),
+        ("length", c_uint)
     ]
 
-# V1 encoding header
+# Common header fields for the zlib compressed part
 payload_hdr_fields = [
-    ("cookie", c_int),
-    ("payload_len", c_int),
-    ("normalizing_index_offset", c_int),
-    ("significant_figures", c_int),
-    ("lowest_trackable_value", c_longlong),
-    ("highest_trackable_value", c_longlong),
-    ("conversion_ratio_bits", c_longlong)]
+    ("cookie", c_uint),
+    ("payload_len", c_uint),
+    ("normalizing_index_offset", c_uint),
+    ("significant_figures", c_uint),
+    ("lowest_trackable_value", c_ulonglong),
+    ("highest_trackable_value", c_ulonglong),
+    ("conversion_ratio_bits", c_ulonglong)]
 
 # A maximum number of entries in the counts array
 # This is to work around the index check done by the python runtime
 MAX_COUNTS = 1000 * 1000
 
 class HdrPayloadHeader(BigEndianStructure):
+    '''Header of the zlib compressed part
+    '''
     _pack_ = 1
     _fields_ = payload_hdr_fields
 
@@ -76,16 +84,22 @@ payload_header_size = sizeof(HdrPayloadHeader)
 payload_header_ptr = ctypes.POINTER(HdrPayloadHeader)
 
 class HdrPayload64(BigEndianStructure):
+    '''Payload structure with 64-bit counters that is zlib compressed
+    '''
     _pack_ = 1
-    _fields_ = payload_hdr_fields + [("counts", c_longlong * MAX_COUNTS)]
+    _fields_ = payload_hdr_fields + [("counts", c_ulonglong * MAX_COUNTS)]
 
 class HdrPayload32(BigEndianStructure):
+    '''Payload structure with 32-bit counters that is zlib compressed
+    '''
     _pack_ = 1
-    _fields_ = payload_hdr_fields + [("counts", c_int * MAX_COUNTS)]
+    _fields_ = payload_hdr_fields + [("counts", c_uint * MAX_COUNTS)]
 
 class HdrPayload16(BigEndianStructure):
+    '''Payload structure with 16-bit counters that is zlib compressed
+    '''
     _pack_ = 1
-    _fields_ = payload_hdr_fields + [("counts", c_short * MAX_COUNTS)]
+    _fields_ = payload_hdr_fields + [("counts", c_ushort * MAX_COUNTS)]
 
 # list of supported payload classes, indexed by the word size
 payload_class_ptrs = [None, None,
@@ -219,7 +233,7 @@ class HdrPayload(object):
 class HdrHistogramEncoder(object):
     '''An encoder class for histograms, only supports V1 encoding.
     '''
-    def __init__(self, histogram, b64_wrap=True, hdr_payload=None):
+    def __init__(self, histogram, b64_wrap=True, hdr_payload=None, word_size=8):
         '''Histogram encoder
         Args:
             histogram the histogram to encode/decode into
@@ -227,10 +241,13 @@ class HdrHistogramEncoder(object):
             hdr_payload if None will create a new HdrPayload instance for this
                 encoder, else will reuse the passed Hdrayload instance (useful
                 after decoding one and to associate it to a new histogram)
+            word_size counters size in bytes (2, 4 or 8)
+        Exceptions:
+            ValueError if the word_size value is unsupported
         '''
         self.histogram = histogram
         if not hdr_payload:
-            self.payload = HdrPayload(8, histogram.counts_len)
+            self.payload = HdrPayload(word_size, histogram.counts_len)
             payload = self.payload.payload
             # those values never change across encodings
             payload.normalizing_index_offset = 0

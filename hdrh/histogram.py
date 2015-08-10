@@ -29,15 +29,60 @@ def get_bucket_count(value, subb_count, unit_mag):
     return buckets_needed
 
 class HdrHistogram(object):
+    '''This class supports the recording and analyzing of sampled data value
+    counts across a configurable integer value range with configurable value
+    precision within the range. Value precision is expressed as the number of
+    significant digits in the value recording, and provides control over value
+    quantization behavior across the value range and the subsequent value
+    resolution at any given level.
+
+    For example, a Histogram could be configured to track the counts of
+    observed integer values between 0 and 3,600,000,000 while maintaining a
+    value precision of 3 significant digits across that range. Value
+    quantization within the range will thus be no larger than 1/1,000th
+    (or 0.1%) of any value. This example Histogram could be used to track and
+    analyze the counts of observed response times ranging between 1 microsecond
+    and 1 hour in magnitude, while maintaining a value resolution of 1
+    microsecond up to 1 millisecond, a resolution of 1 millisecond (or better)
+    up to one second, and a resolution of 1 second (or better) up to 1,000
+    seconds. At it's maximum tracked value (1 hour), it would still maintain a
+    resolution of 3.6 seconds (or better).
+    '''
 
     def __init__(self,
                  lowest_trackable_value,
                  highest_trackable_value,
                  significant_figures,
+                 word_size=8,
                  b64_wrap=True,
                  hdr_payload=None):
+        '''Create a new histogram with given arguments
+
+        Params:
+            lowest_trackable_value The lowest value that can be discerned
+                (distinguished from 0) by the histogram.
+                Must be a positive integer that is >= 1.
+                May be internally rounded down to nearest power of 2.
+            highest_trackable_value The highest value to be tracked by the
+                histogram. Must be a positive integer that is >=
+                (2 * lowest_trackable_value).
+            significant_figures The number of significant decimal digits to
+                which the histogram will maintain value resolution and
+                separation. Must be a non-negative integer between 0 and 5.
+            word_size size of counters in bytes, only 2, 4, 8-byte counters
+                are supported (default is 8-byte or 64-bit counters)
+            b64_wrap specifies if the encoding of this histogram should use
+                base64 wrapping (only useful if you need to encode the histogram
+                to save somewhere or send over the wire. By default base64
+                encoding is assumed
+            hdr_payload only used for associating an existing payload created
+                from decoding an encoded histograme
+        Exceptions:
+            ValueError if the word_size value is unsupported
+                if significant_figures is invalid
+        '''
         if significant_figures < 1 or significant_figures > 5:
-            raise ValueError()
+            raise ValueError('Invalid significant_figures')
         self.lowest_trackable_value = lowest_trackable_value
         self.highest_trackable_value = highest_trackable_value
         self.significant_figures = significant_figures
@@ -69,7 +114,9 @@ class HdrHistogram(object):
         # to encode this histogram into a compressed/base64 format ready
         # to be exported
         self.b64_wrap = b64_wrap
-        self.encoder = HdrHistogramEncoder(self, b64_wrap, hdr_payload)
+        self.encoder = HdrHistogramEncoder(self, b64_wrap,
+                                           hdr_payload,
+                                           word_size)
         # the counters reside directly in the payload object
         # allocated by the encoder
         # so that compression for wire transfer can be done without copy
@@ -367,7 +414,8 @@ class HdrHistogram(object):
     def reset(self):
         '''Reset the histogram to a pristine state
         '''
-        self.counts = [0] * self.counts_len
+        for index in xrange(self.counts_len):
+            self.counts[index] = 0
         self.total_count = 0
         self.min_value = sys.maxint
         self.max_value = 0
