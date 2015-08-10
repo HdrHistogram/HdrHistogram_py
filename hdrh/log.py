@@ -114,6 +114,9 @@ class HistogramLogWriter(object):
         self.output_comment("[Histogram log format version " +
                             HistogramLogWriter.HISTOGRAM_LOG_FORMAT_VERSION + "]")
 
+    def close(self):
+        self.log.close()
+
 # "#[StartTime: %f (seconds since epoch), %s]\n"
 re_start_time = re.compile('#\[StartTime: *([\d\.]*) ')
 
@@ -156,7 +159,7 @@ class HistogramLogReader(object):
                                         dest_histogram,
                                         range_start_time_sec=0.0,
                                         range_end_time_sec=sys.maxint,
-                                        absolute=True):
+                                        absolute=False):
         '''Read the next interval histogram from the log, if interval falls
         within an absolute or relative time range.
 
@@ -254,6 +257,7 @@ class HistogramLogReader(object):
                 start_time_stamp_to_check_range_on = absolute_start_time_stamp_sec
             else:
                 start_time_stamp_to_check_range_on = offset_start_time_stamp_sec
+
             if start_time_stamp_to_check_range_on < range_start_time_sec:
                 continue
 
@@ -272,7 +276,7 @@ class HistogramLogReader(object):
     def get_next_interval_histogram(self,
                                     range_start_time_sec=0.0,
                                     range_end_time_sec=sys.maxint,
-                                    absolute=True):
+                                    absolute=False):
         '''Read the next interval histogram from the log, if interval falls
         within an absolute or relative time range.
 
@@ -321,7 +325,7 @@ class HistogramLogReader(object):
                                     dest_histogram=None,
                                     range_start_time_sec=0.0,
                                     range_end_time_sec=sys.maxint,
-                                    absolute=True):
+                                    absolute=False):
         '''Read the next interval histogram from the log, if interval falls
         within an absolute or relative time range, and add it to the destination
         histogram (or to the reference histogram if dest_histogram is None)
@@ -370,3 +374,6 @@ class HistogramLogReader(object):
                                                     range_start_time_sec,
                                                     range_end_time_sec,
                                                     absolute)
+
+    def close(self):
+        self.input_file.close()

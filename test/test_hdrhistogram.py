@@ -771,6 +771,7 @@ def test_log():
         log_writer.output_interval_histogram(empty_hist)
         log_writer.output_interval_histogram(hist)
         log_writer.output_interval_histogram(corrected_hist)
+        log_writer.close()
 
     # decode the log file and check the decoded histograms
     log_reader = HistogramLogReader(HDR_LOG_NAME, empty_hist)
@@ -784,44 +785,45 @@ def test_log():
 JHICCUP_V1_LOG_NAME = "test/jHiccup-2.0.6.logV1.hlog"
 # Test input and expected output values
 JHICCUP_CHECKLISTS = [
-    {'checklist': {'histogram_count': 88,
-                   'total_count': 65964,
-                   'accumulated_histogram.get_value_at_percentile(99.9)': 1829765119,
-                   'accumulatedHistogram.get_max_value()': 1888485375,
-                   'log_reader.get_start_time_sec()': 1438867590.285}},
+    {'target': {'histogram_count': 88,
+                'total_count': 65964,
+                'accumulated_histogram.get_value_at_percentile(99.9)': 1829765119,
+                'accumulated_histogram.get_max_value()': 1888485375,
+                'log_reader.get_start_time_sec()': 1438867590.285}},
     {'range_start_time_sec': 5,
      'range_end_time_sec': 20,
-     'checklist': {'histogram_count': 15,
-                   'total_count': 11213,
-                   'accumulated_histogram.get_value_at_percentile(99.9)': 1019740159,
-                   'accumulatedHistogram.get_max_value()': 1032323071}},
+     'target': {'histogram_count': 15,
+                'total_count': 11213,
+                'accumulated_histogram.get_value_at_percentile(99.9)': 1019740159,
+                'accumulated_histogram.get_max_value()': 1032323071}},
     {'range_start_time_sec': 50,
      'range_end_time_sec': 80,
-     'checklist': {'histogram_count': 29,
-                   'total_count': 22630,
-                   'accumulated_histogram.get_value_at_percentile(99.9)': 1871708159,
-                   'accumulatedHistogram.get_max_value()': 1888485375}}
+     'target': {'histogram_count': 29,
+                'total_count': 22630,
+                'accumulated_histogram.get_value_at_percentile(99.9)': 1871708159,
+                'accumulated_histogram.get_max_value()': 1888485375}}
 ]
 
 @pytest.mark.log
 def test_jHiccup_v1_log():
     accumulated_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
-    log_reader = HistogramLogReader(JHICCUP_V1_LOG_NAME, accumulated_histogram)
+    for checklist in JHICCUP_CHECKLISTS:
+        accumulated_histogram.reset()
+        log_reader = HistogramLogReader(JHICCUP_V1_LOG_NAME, accumulated_histogram)
 
-    histogram_count = 0
-    total_count = 0
-    while 1:
-        decoded_histogram = log_reader.get_next_interval_histogram()
-        if not decoded_histogram:
-            break
-        histogram_count += 1
-        total_count += decoded_histogram.get_total_count()
-        accumulated_histogram.add(decoded_histogram)
-        # These logs use 2-word (16-bit) counters
-        assert(decoded_histogram.get_word_size() == 2)
+        histogram_count = 0
+        total_count = 0
+        target_numbers = checklist.pop('target')
+        while 1:
+            decoded_histogram = log_reader.get_next_interval_histogram(**checklist)
+            if not decoded_histogram:
+                break
+            histogram_count += 1
+            total_count += decoded_histogram.get_total_count()
+            accumulated_histogram.add(decoded_histogram)
+            # These logs use 2-word (16-bit) counters
+            assert(decoded_histogram.get_word_size() == 2)
+        for statement in target_numbers:
+            assert(eval(statement) == target_numbers[statement])
 
-    assert(88 == histogram_count)
-    assert(65964 == total_count)
-    assert(1829765119 == accumulated_histogram.get_value_at_percentile(99.9))
-    assert(1888485375 == accumulated_histogram.get_max_value())
-    assert(1438867590.285 == log_reader.get_start_time_sec())
+        log_reader.close()
