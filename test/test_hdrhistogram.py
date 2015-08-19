@@ -19,7 +19,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-
+import cProfile
 import datetime
 import pytest
 import zlib
@@ -448,7 +448,6 @@ def check_imported_buckets(latency_data):
 def test_imported_buckets():
     check_imported_buckets(IMPORTED_LATENCY_DATA0)
     check_imported_buckets(IMPORTED_LATENCY_DATA1)
-    # cProfile.runctx('check_imported_buckets(IMPORTED_LATENCY_DATA1)', globals(), locals())
 
 @pytest.mark.json
 def test_percentile_list():
@@ -597,7 +596,7 @@ def test_hdr_payload_exceptions():
 
     # invalid cookie
     payload = HdrPayload(8, HDR_PAYLOAD_COUNTS)
-    payload.payload.cookie = 12345
+    payload.payload['cookie'] = 12345
     cpayload = payload.compress()
     with pytest.raises(HdrCookieException):
         HdrPayload().decompress(cpayload)
@@ -755,8 +754,21 @@ def test_hdr_interop_wrk2():
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, 2)
     histogram.decode_and_add(ENCODE_SAMPLE_WRK2_C[0])
 
-@pytest.mark.perf
-def test_hist_dec_perf():
+
+def check_cod_perf():
+    histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, 2)
+    fill_start_index = (20 * histogram.counts_len) / 100
+    fill_to_index = fill_start_index + (30 * histogram.counts_len) / 100
+    fill_hist_counts(histogram, fill_to_index, fill_start_index)
+
+    # encode 1000 times
+    start = datetime.datetime.now()
+    for _ in xrange(1000):
+        histogram.encode()
+    delta = datetime.datetime.now() - start
+    print delta
+
+def check_dec_perf():
     histogram = HdrHistogram(LOWEST, IMPORTED_MAX_LATENCY, 2)
     fill_start_index = (20 * histogram.counts_len) / 100
     fill_to_index = fill_start_index + (30 * histogram.counts_len) / 100
@@ -770,11 +782,13 @@ def test_hist_dec_perf():
     delta = datetime.datetime.now() - start
     print delta
 
-import cProfile
+@pytest.mark.perf
+def test_cod_perf():
+    cProfile.runctx('check_cod_perf()', globals(), locals())
 
 @pytest.mark.perf
-def test_perf_profile():
-    cProfile.runctx('test_hist_dec_perf()', globals(), locals())
+def test_dec_perf():
+    cProfile.runctx('check_dec_perf()', globals(), locals())
 
 def check_decoded_hist_counts(hist, multiplier):
     assert(hist)

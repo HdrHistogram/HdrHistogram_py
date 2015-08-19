@@ -26,7 +26,7 @@ Python API
 Users of this library can generally play 2 roles (often both):
 
 - histogram provisioning (record values)
-- histogram query
+- histogram query (for display or analysis)
 
 A histogram instance can be created using the HdrHistogram class and specifying the
 minimum and maximum trackable value and the number of precision digits.
@@ -143,31 +143,22 @@ Just run tox without any argument (the first run will take more time as tox will
 .. code::
 
     $ tox
-    GLOB sdist-make: /openstack/pyhdr/hdrhistogram/setup.py
-    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.1.0.zip
-    py27 installed: flake8==2.4.1,hdrhistogram==0.1.0,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
-    py27 runtests: PYTHONHASHSEED='40561919'
-    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram/.tox/py27/tmp
-    
-    ............................
-    28 passed in 6.40 seconds
-    
-    pep8 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.1.0.zip
-    pep8 installed: flake8==2.4.1,hdr-histogram==0.1,hdrhistogram==0.1.0,mccabe==0.3.1,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
-    pep8 runtests: PYTHONHASHSEED='40561919'
+    GLOB sdist-make: /openstack/pyhdr/hdrhistogram-numpy/setup.py
+    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram-numpy/.tox/dist/hdrhistogram-0.1.2.zip
+    py27 installed: flake8==2.4.1,hdrhistogram==0.1.2,mccabe==0.3.1,numpy==1.9.2,pbr==1.5.0,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    py27 runtests: PYTHONHASHSEED='1248501196'
+    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram-numpy/.tox/py27/tmp
+    ...........................ss..
+    29 passed, 2 skipped in 6.57 seconds
+    pep8 inst-nodeps: /openstack/pyhdr/hdrhistogram-numpy/.tox/dist/hdrhistogram-0.1.2.zip
+    pep8 installed: flake8==2.4.1,hdrhistogram==0.1.2,mccabe==0.3.1,numpy==1.9.2,pbr==1.5.0,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    pep8 runtests: PYTHONHASHSEED='1248501196'
     pep8 runtests: commands[0] | flake8 hdrh test
-    ________________________________________________________________________ summary _________________________________________________________________________
+    ____________________________________________________ summary _____________________________________________________
       py27: commands succeeded
       pep8: commands succeeded
       congratulations :)
     $
-
-Performance
------------
-Although not nearly as fast as the Java and C version, the python version provides
-adequate performance for most uses considering it is pure python code.
-Histogram value recording has the same cost characteristics than the Java version since it is a direct port (fixed cost for CPU and reduced memory usage).
-Encoding and decoding is relatively fast thanks to the use of native compression library (using zlib).
 
 Aggregation of Distributed Histograms
 -------------------------------------
@@ -201,6 +192,226 @@ This library provides a solution for the aggregation part of the problem:
 
 Refer to the unit test code (test/test_hdrhistogram.py) to see how these APIs can be used.
 
+Performance
+-----------
+Although likely not nearly as fast as the Java and C version, the python version
+provides adequate performance for most uses.
+Histogram value recording has the same cost characteristics than the Java version
+since it is a direct port (fixed cost for CPU and reduced memory usage).
+Encoding and decoding is relatively fast thanks to the use of:
+
+- native compression library (using zlib)
+- numpy arrays for fast addition of arrays (needed for decode and add)
+- ctypes for fast access/arithmetics to individual array elements
+
+On a macbook pro (2.3 GHz Intel Core i7), the cost for recording a value is
+less than 2 usec while encoding a typical histogram
+is around 0.8 msec while the decoding side takes about 0.2 msec.
+
+The typical histogram is defined as one that has 30% of 64-bit buckets filled with
+sequential values starting at 20% of the array, for a range of 1 usec to 24 hours
+and 2 digits precision. This represents a total of 3968 buckets, of which
+the first 793 are zeros, the next 1190 buckets have a non identical value and all
+remaining buckets are zeros, for an encoded length of 3116 bytes.
+
+To measure the performance of encoding and decoding and get the profiling, use the
+--runperf option. The 2 profiling functions will provide the profiling information
+for encoding and decoding the typical histogram 1000 times (so the time values shown
+are seconds for 1000 decodes/decodes).
+
+.. code::
+
+    $ tox -e py27 '-k test_cod_perf --runperf'
+    GLOB sdist-make: /openstack/pyhdr/hdrhistogram-numpy/setup.py
+    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram-numpy/.tox/dist/hdrhistogram-0.1.2.zip
+    py27 installed: flake8==2.4.1,hdrhistogram==0.1.2,mccabe==0.3.1,numpy==1.9.2,pbr==1.5.0,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    py27 runtests: PYTHONHASHSEED='4056326909'
+    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram-numpy/.tox/py27/tmp -k test_cod_perf --runperf
+    0:00:00.783330
+             62321 function calls (52319 primitive calls) in 0.793 seconds
+    
+       Ordered by: standard name
+    
+       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+            1    0.000    0.000    0.793    0.793 <string>:1(<module>)
+            1    0.000    0.000    0.000    0.000 __init__.py:501(cast)
+         2000    0.007    0.000    0.007    0.000 __init__.py:505(string_at)
+          3/2    0.000    0.000    0.000    0.000 _endian.py:27(__setattr__)
+          2/1    0.000    0.000    0.000    0.000 _endian.py:9(_other_endian)
+            1    0.000    0.000    0.000    0.000 _internal.py:225(__init__)
+            1    0.000    0.000    0.000    0.000 _internal.py:238(data_as)
+    12000/2000    0.034    0.000    0.037    0.000 _internal.py:87(_array_descr)
+         1000    0.001    0.000    0.007    0.000 base64.py:42(b64encode)
+            1    0.000    0.000    0.000    0.000 codec.py:111(get_hdr_ctypes)
+            1    0.000    0.000    0.000    0.000 codec.py:115(AnyHdrPayload)
+            1    0.000    0.000    0.000    0.000 codec.py:132(__init__)
+            1    0.000    0.000    0.000    0.000 codec.py:145(get_counts)
+         1000    0.014    0.000    0.735    0.001 codec.py:226(compress)
+            1    0.000    0.000    0.000    0.000 codec.py:260(__init__)
+            1    0.000    0.000    0.000    0.000 codec.py:290(get_counts)
+         1000    0.019    0.000    0.781    0.001 codec.py:299(encode)
+            1    0.000    0.000    0.000    0.000 codec.py:49(get_encoding_cookie)
+            1    0.000    0.000    0.000    0.000 codec.py:52(get_compression_cookie)
+            1    0.000    0.000    0.000    0.000 codec.py:98(get_hdr_dtype)
+         2190    0.001    0.000    0.003    0.000 histogram.py:136(_clz)
+         2190    0.003    0.000    0.006    0.000 histogram.py:147(_get_bucket_index)
+         2190    0.001    0.000    0.001    0.000 histogram.py:153(_get_sub_bucket_index)
+         1190    0.000    0.000    0.000    0.000 histogram.py:156(_counts_index)
+         1190    0.001    0.000    0.005    0.000 histogram.py:166(_counts_index_for)
+         1190    0.002    0.000    0.007    0.000 histogram.py:171(record_value)
+         1190    0.000    0.000    0.000    0.000 histogram.py:225(get_value_from_sub_bucket)
+         1190    0.001    0.000    0.001    0.000 histogram.py:228(get_value_from_index)
+            1    0.000    0.000    0.000    0.000 histogram.py:31(get_bucket_count)
+         1000    0.001    0.000    0.782    0.001 histogram.py:452(encode)
+         1000    0.002    0.000    0.006    0.000 histogram.py:496(get_counts_array_index)
+            1    0.000    0.000    0.000    0.000 histogram.py:62(__init__)
+            1    0.001    0.001    0.010    0.010 test_hdrhistogram.py:604(fill_hist_counts)
+            1    0.001    0.001    0.793    0.793 test_hdrhistogram.py:758(check_cod_perf)
+            1    0.000    0.000    0.000    0.000 {_ctypes.POINTER}
+         1000    0.006    0.000    0.006    0.000 {binascii.b2a_base64}
+         2190    0.001    0.000    0.001    0.000 {bin}
+            2    0.000    0.000    0.000    0.000 {built-in method now}
+            1    0.000    0.000    0.000    0.000 {getattr}
+            2    0.000    0.000    0.000    0.000 {hasattr}
+            1    0.000    0.000    0.000    0.000 {isinstance}
+        13190    0.001    0.000    0.001    0.000 {len}
+            1    0.000    0.000    0.000    0.000 {math.ceil}
+            1    0.000    0.000    0.000    0.000 {math.floor}
+            4    0.000    0.000    0.000    0.000 {math.log}
+            2    0.000    0.000    0.000    0.000 {math.pow}
+         1190    0.000    0.000    0.000    0.000 {max}
+        10001    0.002    0.000    0.002    0.000 {method 'append' of 'list' objects}
+            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+         1000    0.001    0.000    0.001    0.000 {method 'join' of 'str' objects}
+         1190    0.000    0.000    0.000    0.000 {min}
+            2    0.000    0.000    0.000    0.000 {numpy.core.multiarray.zeros}
+         1000    0.691    0.001    0.691    0.001 {zlib.compress}
+    
+    
+    .
+    ==================================== 30 tests deselected by '-ktest_cod_perf' ====================================
+    1 passed, 30 deselected in 1.01 seconds
+    ____________________________________________________ summary _____________________________________________________
+      py27: commands succeeded
+      congratulations :)
+
+And for decoding:
+
+.. code::
+
+    $ tox -e py27 '-k test_dec_perf --runperf'
+    GLOB sdist-make: /openstack/pyhdr/hdrhistogram-numpy/setup.py
+    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram-numpy/.tox/dist/hdrhistogram-0.1.2.zip
+    py27 installed: flake8==2.4.1,hdrhistogram==0.1.2,mccabe==0.3.1,numpy==1.9.2,pbr==1.5.0,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
+    py27 runtests: PYTHONHASHSEED='3255600895'
+    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram-numpy/.tox/py27/tmp -k test_dec_perf --runperf
+    0:00:00.220248
+             53369 function calls (53357 primitive calls) in 0.233 seconds
+    
+       Ordered by: standard name
+    
+       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+            1    0.000    0.000    0.233    0.233 <string>:1(<module>)
+            1    0.000    0.000    0.000    0.000 __init__.py:501(cast)
+            2    0.000    0.000    0.000    0.000 __init__.py:505(string_at)
+          3/2    0.000    0.000    0.000    0.000 _endian.py:27(__setattr__)
+          2/1    0.000    0.000    0.000    0.000 _endian.py:9(_other_endian)
+            1    0.000    0.000    0.000    0.000 _internal.py:225(__init__)
+            1    0.000    0.000    0.000    0.000 _internal.py:238(data_as)
+         12/2    0.000    0.000    0.000    0.000 _internal.py:87(_array_descr)
+         1000    0.001    0.000    0.022    0.000 _methods.py:31(_sum)
+            1    0.000    0.000    0.000    0.000 base64.py:42(b64encode)
+         1000    0.001    0.000    0.015    0.000 base64.py:59(b64decode)
+            1    0.000    0.000    0.000    0.000 codec.py:111(get_hdr_ctypes)
+            1    0.000    0.000    0.000    0.000 codec.py:115(AnyHdrPayload)
+         1001    0.001    0.000    0.001    0.000 codec.py:132(__init__)
+            1    0.000    0.000    0.000    0.000 codec.py:145(get_counts)
+         2000    0.003    0.000    0.003    0.000 codec.py:160(get_np_counts)
+         1000    0.010    0.000    0.069    0.000 codec.py:166(decompress)
+            1    0.000    0.000    0.001    0.001 codec.py:226(compress)
+            1    0.000    0.000    0.000    0.000 codec.py:260(__init__)
+            1    0.000    0.000    0.000    0.000 codec.py:290(get_counts)
+            1    0.000    0.000    0.001    0.001 codec.py:299(encode)
+         1000    0.014    0.000    0.107    0.000 codec.py:322(decode)
+         1000    0.031    0.000    0.090    0.000 codec.py:369(update_counts)
+         1000    0.018    0.000    0.217    0.000 codec.py:418(decode_and_add)
+         2000    0.012    0.000    0.012    0.000 codec.py:43(get_cookie_base)
+         1000    0.004    0.000    0.004    0.000 codec.py:46(get_word_size_in_bytes_from_cookie)
+            1    0.000    0.000    0.000    0.000 codec.py:49(get_encoding_cookie)
+            1    0.000    0.000    0.000    0.000 codec.py:52(get_compression_cookie)
+         1001    0.007    0.000    0.007    0.000 codec.py:98(get_hdr_dtype)
+         1000    0.001    0.000    0.017    0.000 fromnumeric.py:1380(nonzero)
+         2191    0.002    0.000    0.003    0.000 histogram.py:136(_clz)
+         2191    0.004    0.000    0.007    0.000 histogram.py:147(_get_bucket_index)
+         2191    0.001    0.000    0.001    0.000 histogram.py:153(_get_sub_bucket_index)
+         1190    0.001    0.000    0.001    0.000 histogram.py:156(_counts_index)
+         1190    0.001    0.000    0.005    0.000 histogram.py:166(_counts_index_for)
+         1190    0.003    0.000    0.009    0.000 histogram.py:171(record_value)
+         4190    0.002    0.000    0.002    0.000 histogram.py:225(get_value_from_sub_bucket)
+         3190    0.005    0.000    0.007    0.000 histogram.py:228(get_value_from_index)
+         1000    0.002    0.000    0.007    0.000 histogram.py:245(get_highest_equivalent_value)
+            1    0.000    0.000    0.000    0.000 histogram.py:31(get_bucket_count)
+            1    0.000    0.000    0.001    0.001 histogram.py:452(encode)
+         1000    0.002    0.000    0.220    0.000 histogram.py:459(decode_and_add)
+         1000    0.005    0.000    0.018    0.000 histogram.py:477(adjust_internal_tacking_values)
+            1    0.000    0.000    0.000    0.000 histogram.py:496(get_counts_array_index)
+            1    0.000    0.000    0.000    0.000 histogram.py:62(__init__)
+            1    0.001    0.001    0.011    0.011 test_hdrhistogram.py:604(fill_hist_counts)
+            1    0.001    0.001    0.233    0.233 test_hdrhistogram.py:771(check_dec_perf)
+            1    0.000    0.000    0.000    0.000 {_ctypes.POINTER}
+         1000    0.014    0.000    0.014    0.000 {binascii.a2b_base64}
+            1    0.000    0.000    0.000    0.000 {binascii.b2a_base64}
+         2191    0.001    0.000    0.001    0.000 {bin}
+            2    0.000    0.000    0.000    0.000 {built-in method now}
+            1    0.000    0.000    0.000    0.000 {getattr}
+            2    0.000    0.000    0.000    0.000 {hasattr}
+            1    0.000    0.000    0.000    0.000 {isinstance}
+         4202    0.001    0.000    0.001    0.000 {len}
+            1    0.000    0.000    0.000    0.000 {math.ceil}
+            1    0.000    0.000    0.000    0.000 {math.floor}
+            4    0.000    0.000    0.000    0.000 {math.log}
+            2    0.000    0.000    0.000    0.000 {math.pow}
+         2190    0.001    0.000    0.001    0.000 {max}
+           11    0.000    0.000    0.000    0.000 {method 'append' of 'list' objects}
+            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+            1    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+         1000    0.016    0.000    0.016    0.000 {method 'nonzero' of 'numpy.ndarray' objects}
+         1000    0.021    0.000    0.021    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+         1000    0.001    0.000    0.023    0.000 {method 'sum' of 'numpy.ndarray' objects}
+         2190    0.001    0.000    0.001    0.000 {min}
+         3000    0.004    0.000    0.004    0.000 {numpy.core.multiarray.frombuffer}
+            2    0.000    0.000    0.000    0.000 {numpy.core.multiarray.zeros}
+            1    0.001    0.001    0.001    0.001 {zlib.compress}
+         1000    0.041    0.000    0.041    0.000 {zlib.decompress}
+    
+    
+    .
+    ==================================== 30 tests deselected by '-ktest_dec_perf' ====================================
+    1 passed, 30 deselected in 0.35 seconds
+    ____________________________________________________ summary _____________________________________________________
+      py27: commands succeeded
+      congratulations :)
+
+Finally, example of profiling when recording a large number of values (record_value
+shows 0.313 seconds for 172032 calls):
+
+.. code::
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    1.936    1.936 <string>:1(<module>)
+   172044    0.090    0.000    0.189    0.000 histogram.py:137(_clz)
+   172044    0.191    0.000    0.379    0.000 histogram.py:148(_get_bucket_index)
+   172044    0.066    0.000    0.066    0.000 histogram.py:154(_get_sub_bucket_index)
+   172032    0.066    0.000    0.066    0.000 histogram.py:157(_counts_index)
+   172032    0.182    0.000    0.693    0.000 histogram.py:167(_counts_index_for)
+   172032    0.313    0.000    1.078    0.000 histogram.py:172(record_value)
+   344064    0.158    0.000    0.158    0.000 histogram.py:206(get_count_at_index)
+   172050    0.038    0.000    0.038    0.000 histogram.py:226(get_value_from_sub_bucket)
+   172044    0.139    0.000    0.177    0.000 histogram.py:229(get_value_from_index)
+       12    0.103    0.009    0.103    0.009 histogram.py:552(add_counts)
+        6    0.122    0.020    1.376    0.229 test_hdrhistogram.py:605(fill_hist_counts)
+       12    0.193    0.016    0.351    0.029 test_hdrhistogram.py:612(check_hist_counts)
+      
 Limitations and Caveats
 -----------------------
 

@@ -115,8 +115,7 @@ class HdrHistogram(object):
         if hdr_payload:
             payload = hdr_payload.payload
             self.counts_len = hdr_payload.counts_len
-            self.check_counts(payload.counts, self.counts_len)
-            self.int_to_double_conversion_ratio = payload.conversion_ratio_bits
+            self.int_to_double_conversion_ratio = payload['conversion_ratio_bits']
         else:
             self.counts_len = (self.bucket_count + 1) * (self.sub_bucket_count / 2)
             self.int_to_double_conversion_ratio = 1.0
@@ -533,39 +532,6 @@ class HdrHistogram(object):
         '''
         self.end_time_stamp_msec = time_stamp_msec
 
-    def check_counts(self, counts, counts_len):
-        if counts_len:
-            lowest_non_zero_index = -1
-            highest_non_zero_index = -1
-            observed_other_total_count = 0
-            for index in xrange(counts_len):
-                other_count = counts[index]
-                if other_count > 0:
-                    if lowest_non_zero_index < 0:
-                        lowest_non_zero_index = index
-                    highest_non_zero_index = index
-                    observed_other_total_count += other_count
-            self.adjust_internal_tacking_values(lowest_non_zero_index,
-                                                highest_non_zero_index,
-                                                observed_other_total_count)
-
-    def add_counts(self, counts, counts_len):
-        if counts_len:
-            lowest_non_zero_index = -1
-            highest_non_zero_index = -1
-            observed_other_total_count = 0
-            for index in xrange(counts_len):
-                other_count = counts[index]
-                if other_count > 0:
-                    if lowest_non_zero_index < 0:
-                        lowest_non_zero_index = index
-                    highest_non_zero_index = index
-                    self.counts[index] += other_count
-                    observed_other_total_count += other_count
-            self.adjust_internal_tacking_values(lowest_non_zero_index,
-                                                highest_non_zero_index,
-                                                observed_other_total_count)
-
     def add(self, other_hist):
         highest_recordable_value = \
             self.get_highest_equivalent_value(self.get_value_from_index(self.counts_len - 1))
@@ -621,9 +587,9 @@ class HdrHistogram(object):
         '''
         hdr_payload = HdrHistogramEncoder.decode(encoded_histogram)
         payload = hdr_payload.payload
-        histogram = HdrHistogram(payload.lowest_trackable_value,
-                                 payload.highest_trackable_value,
-                                 payload.significant_figures,
+        histogram = HdrHistogram(payload['lowest_trackable_value'],
+                                 payload['highest_trackable_value'],
+                                 payload['significant_figures'],
                                  hdr_payload=hdr_payload)
         return histogram
 

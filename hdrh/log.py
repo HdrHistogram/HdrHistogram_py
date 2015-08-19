@@ -82,11 +82,12 @@ class HistogramLogWriter(object):
                 (histogram.get_start_time_stamp() - self.base_time) / 1000.0
         if not end_time_stamp_sec:
             end_time_stamp_sec = (histogram.get_end_time_stamp() - self.base_time) / 1000.0
+        cpayload = histogram.encode()
         self.log.write("%f,%f,%f,%s\n" %
                        (start_time_stamp_sec,
                         end_time_stamp_sec - start_time_stamp_sec,
                         histogram.get_max_value() / max_value_unit_ratio,
-                        histogram.encode()))
+                        cpayload))
 
     def output_start_time(self, start_time_msec):
         '''Log a start time in the log.
