@@ -7,7 +7,7 @@ High Dynamic Range Histogram pure python implementation
 This repository contains a port to python of portions of the HDR Histogram
 library:
 
-- Basic histogram value recorging
+- Basic histogram value recording
     - record value
     - record value with correction for coordinated omission
 - Supports 16-bit, 32-bit and 64-bit counters
@@ -28,6 +28,9 @@ Users of this library can generally play 2 roles (often both):
 - histogram provisioning (record values)
 - histogram query (for display or analysis)
 
+In distributed cases, histogram provisioning can be be done remotely then
+aggregated in a central place for analysis.
+
 A histogram instance can be created using the HdrHistogram class and specifying the
 minimum and maximum trackable value and the number of precision digits.
 For example to create a histogram that can count values in the [1..3600000] range and
@@ -37,7 +40,12 @@ For example to create a histogram that can count values in the [1..3600000] rang
 
      histogram = HdrHistogram(1, 60 * 60 * 1000, 2)
 
-Once created it is easy to add values to it:
+By default counters are 64-bit while 16 or 32-bit counters can be specified (word_size
+option set to 2 or 4).
+Note that counter overflow is not tested in this version so be careful when using
+smaller counter sizes.
+
+Once created it is easy to add values to a histogram:
 
 .. code::
 
@@ -49,7 +57,7 @@ use the corrected version of that method (example when the expected interval is
 
 .. code::
 
-     histogram.record_corrcted_value(latency, 10)
+     histogram.record_corrected_value(latency, 10)
 
 At any time, the histogram can be queried to return any property, such as getting
 the total number of values recorded or the value at a given percentile:
@@ -114,6 +122,7 @@ Make sure you have python 2.7 and pip installed
 Binary installation
 ^^^^^^^^^^^^^^^^^^^
 This is the preferred method for most installations where you only need to use this library.
+Use a python virtual environment if needed.
 
 .. code::
 
@@ -122,9 +131,10 @@ This is the preferred method for most installations where you only need to use t
 Source code installation and Unit Testing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This is the method to use for any development work with this library or if you want to run the test code.
+This is the method to use for any development work with this library or if you
+want to read or run the test code.
 
-Install the unit test automation harness tox and hdrhistogram from github
+Install the unit test automation harness tox and hdrhistogram from github:
 
 .. code::
 
@@ -135,7 +145,7 @@ Install the unit test automation harness tox and hdrhistogram from github
 
 Running tox will execute 2 targets:
 
-- flake8 for syntax and indentation checking
+- pep8/flake8 for syntax and indentation checking
 - the python unit test code
 
 Just run tox without any argument (the first run will take more time as tox will setup the execution environment and download the necessary packages):
@@ -205,13 +215,13 @@ Encoding and decoding is relatively fast thanks to the use of:
 - ctypes for fast access/arithmetics to individual array elements
 
 On a macbook pro (2.3 GHz Intel Core i7), the cost for recording a value is
-less than 2 usec while encoding a typical histogram
-is around 0.8 msec while the decoding side takes about 0.2 msec.
+less than 2 usec (see details below) while encoding a typical histogram
+is around 0.8 msec and the decoding side takes about 0.2 msec.
 
 The typical histogram is defined as one that has 30% of 64-bit buckets filled with
 sequential values starting at 20% of the array, for a range of 1 usec to 24 hours
 and 2 digits precision. This represents a total of 3968 buckets, of which
-the first 793 are zeros, the next 1190 buckets have a non identical value and all
+the first 793 are zeros, the next 1190 buckets have a sequential/unique value and all
 remaining buckets are zeros, for an encoded length of 3116 bytes.
 
 To measure the performance of encoding and decoding and get the profiling, use the
@@ -416,7 +426,7 @@ Limitations and Caveats
 -----------------------
 
 The latest features and bug fixes of the original HDR histogram library may not be available in this python port.
-List of notable features/APIs not implemented:
+Examples of notable features/APIs not implemented:
 
 - concurrency support (AtomicHistogram, ConcurrentHistogram...)
 - DoubleHistogram
