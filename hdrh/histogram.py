@@ -257,7 +257,7 @@ class HdrHistogram(object):
 
     def get_target_count_at_percentile(self, percentile):
         requested_percentile = min(percentile, 100.0)
-        count_at_percentile = int(((requested_percentile / 100) * self.total_count) + 0.5)
+        count_at_percentile = int(((requested_percentile * self.total_count / 100)) + 0.5)
         return max(count_at_percentile, 1)
 
     def get_value_at_percentile(self, percentile):
@@ -377,48 +377,6 @@ class HdrHistogram(object):
             dev = (self._hdr_median_equiv_value(item.value_iterated_to) * 1.0) - mean
             geometric_dev_total += (dev * dev) * item.count_added_in_this_iter_step
         return math.sqrt(geometric_dev_total / self.total_count)
-
-    def add_bucket_counts(self, bucket_counts):
-        '''Add a list of bucket/sub-bucket counts to the histogram (deprecated).
-
-        This method is deprecated and is replaced by the standard HDR Histogram
-        V1 encoding/decoding routines (see codec.py)
-
-        Args:
-            bucket_counts: must be a dict with the following content:
-            {"buckets":27, "sub_buckets": 2048, "digits": 3,
-             "max_latency": 86400000000,
-             "min": 891510,
-             "max": 2097910,
-             "counters":
-                # list of bucket_index, [sub_bucket_index, count...]
-                [12, [1203, 1, 1272, 1, 1277, 1, 1278, 1, 1296, 1],
-                 13, [1024, 1, 1027, 2, 1030, 1, 1031, 1]]
-            }
-            The first 4 keys are optional.
-
-        Returns:
-            true if success
-            false if error (buckets and sub bucket count must match if present)
-        '''
-        # only check if present
-        if 'buckets' in bucket_counts:
-            if (bucket_counts['buckets'] != self.bucket_count) or \
-               (bucket_counts['sub_buckets'] != self.sub_bucket_count):
-                return False
-        counts = bucket_counts['counters']
-        for index in range(0, len(counts), 2):
-            bucket_index = counts[index]
-            sub_bucket_list = counts[index + 1]
-            for sub_index in range(0, len(sub_bucket_list), 2):
-                sub_bucket_index = sub_bucket_list[sub_index]
-                counts_index = self._counts_index(bucket_index, sub_bucket_index)
-                count = sub_bucket_list[sub_index + 1]
-                self.counts[counts_index] += count
-                self.total_count += count
-        self.min_value = min(self.min_value, bucket_counts['min'])
-        self.max_value = max(self.max_value, bucket_counts['max'])
-        return True
 
     def reset(self):
         '''Reset the histogram to a pristine state

@@ -444,9 +444,11 @@ def dump_payload(counts, max_index):
     if not max_index:
         return
     series_start_index = 0
+    total_count = 0
     current_series_count = counts[0]
     index = 0
     for index in xrange(1, max_index):
+        total_count += counts[index]
         if counts[index] != current_series_count:
             # dump the current series
             _dump_series(series_start_index, index, current_series_count)
@@ -455,7 +457,7 @@ def dump_payload(counts, max_index):
             series_start_index = index
     # there is always a last series to dump
     _dump_series(series_start_index, index, counts[index])
-    print '[%06d] --END--' % (index + 1)
+    print '[%06d] --END-- total count=%d' % (index + 1, total_count)
 
 def hex_dump(label, str):
     print label
