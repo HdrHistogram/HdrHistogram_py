@@ -24,12 +24,22 @@ import datetime
 import pytest
 import zlib
 
+from ctypes import addressof
+from ctypes import c_uint8
+from ctypes import c_uint16
+from ctypes import c_uint32
+from ctypes import c_uint64
+from ctypes import sizeof
+from ctypes import string_at
+
 from hdrh.codec import HdrPayload
 from hdrh.codec import HdrCookieException
 from hdrh.histogram import HdrHistogram
 from hdrh.log import HistogramLogWriter
 from hdrh.log import HistogramLogReader
-
+from pyhdrh import add_array
+from pyhdrh import encode
+from pyhdrh import decode
 
 # histogram __init__ values
 LOWEST = 1
@@ -328,11 +338,10 @@ def check_hdr_payload(counter_size):
     fill_counts(payload, HDR_PAYLOAD_COUNTS)
 
     # get a compressed version of that payload
-    cpayload = payload.compress()
+    cpayload = payload.compress(HDR_PAYLOAD_COUNTS)
     # now decompress it into a new hdr payload instance
-    dpayload = HdrPayload().decompress(cpayload)
-
-    assert(dpayload.counts_len == HDR_PAYLOAD_COUNTS)
+    dpayload = HdrPayload(counter_size, compressed_payload=cpayload)
+    dpayload.init_counts(HDR_PAYLOAD_COUNTS)
 
     # now verify that the counters are identical to the original
     check_counts(dpayload, HDR_PAYLOAD_COUNTS)
@@ -347,7 +356,7 @@ def test_hdr_payload():
 def test_hdr_payload_exceptions():
     # test invalid zlib compressed buffer
     with pytest.raises(zlib.error):
-        HdrPayload().decompress("junk data")
+        HdrPayload(2, compressed_payload="junk data")
 
     # unsupported word size
     with pytest.raises(ValueError):
@@ -357,10 +366,10 @@ def test_hdr_payload_exceptions():
 
     # invalid cookie
     payload = HdrPayload(8, HDR_PAYLOAD_COUNTS)
-    payload.payload['cookie'] = 12345
-    cpayload = payload.compress()
+    payload.payload.cookie = 12345
+    cpayload = payload.compress(HDR_PAYLOAD_COUNTS)
     with pytest.raises(HdrCookieException):
-        HdrPayload().decompress(cpayload)
+        HdrPayload(2, compressed_payload=cpayload)
 
 def fill_hist_counts(histogram, last_index, start=0):
     # fill the counts of a given histogram and update the min/max/total count
@@ -378,12 +387,10 @@ WRK2_MAX_LATENCY = 24 * 60 * 60 * 1000000
 
 def check_hist_encode(word_size,
                       digits,
-                      b64_wrap,
                       expected_compressed_length,
                       fill_start_percent,
                       fill_count_percent):
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, digits,
-                             b64_wrap=b64_wrap,
                              word_size=word_size)
     if fill_count_percent:
         fill_start_index = (fill_start_percent * histogram.counts_len) / 100
@@ -394,27 +401,19 @@ def check_hist_encode(word_size,
 
 # A list of call arguments to check_hdr_encode
 ENCODE_ARG_LIST = (
-    # word size digits  b64_wrap expected_compressed_length, fill_start%, fill_count%
+    # word size digits  expected_compressed_length, fill_start%, fill_count%
     # best case when all counters are zero
-    (8, 3, True, 52, 0, 0),        # 385 = size when compressing entire counts array
-    (8, 3, False, 30, 0, 0),       # 276   (instead of truncating trailing zero buckets)
-    (8, 2, True, 52, 0, 0),        # 126
-    (8, 2, False, 30, 0, 0),       # 85
+    (8, 3, 48, 0, 0),        # V1=52 385 = size when compressing entire counts array
+    (8, 2, 48, 0, 0),        # 126
     # typical case when all counters are aggregated in a small contiguous area
-    (8, 3, True, 16452, 30, 20),   # 17172
-    (8, 3, False, 12330, 30, 20),  # 12712
-    (8, 2, True, 2096, 30, 20),    # 2212
-    (8, 2, False, 1563, 30, 20),   # 1630
+    (8, 3, 15560, 30, 20),   # V1=16452
+    (8, 2, 1688, 30, 20),    # V1=2096
     # worst case when all counters are different
-    (8, 3, True, 80680, 0, 100),
-    (8, 3, False, 60501, 0, 100),
-    (8, 2, True, 10744, 0, 100),
-    (8, 2, False, 8048, 0, 100),
+    (8, 3, 76892, 0, 100),   # V1=80680
+    (8, 2, 9340, 0, 100),    # V1=10744
     # worst case 32-bit and 16-bit counters
-    (4, 3, True, 76272, 0, 100),
-    (4, 2, True, 10144, 0, 100),
-    (2, 3, True, 68936, 0, 100),
-    (2, 2, True, 9144, 0, 100),
+    (2, 3, 76892, 0, 100),   # V1=68936
+    (2, 2, 9340, 0, 100),    # V1=9144
 )
 
 @pytest.mark.codec
@@ -467,30 +466,13 @@ def test_hist_codec_partial():
 
 ENCODE_SAMPLES_HDRHISTOGRAM_C = [
     # standard Hdr test histogram
-    'HISTggAAAMx4nO3OMQ2AMBRF0V9qoALYGZFQbSQ4qAU0EWQggRC6oICEnDPct75xbUsM8xGP3Dfd2d'
-    'sW9QwAAAAAAAAA4GUqXz8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH4nXZWnBjY=',
+    'HISTFAAAACl4nJNpmSzMwMBgyAABzFCaEURcm7yEwf4DROA8/4I5jNM7mJgAlWkH9g==',
     # standard Hdr test corrected histogram
-    'HISTggAABER4nO3ZwY0dRRRA0bGNYEsA7FkSArEhkQEpEBMiDEJACNcCSyPKZU/3repzFv6a8ftPt0'
-    'qt77H9w6+//fLy/qc/X/714ePru39++eO3319+/usFAAAAAAAAAPiPH7+/uwAAAAAAAAAAAAAAAAAA'
-    'AAAAAAAAAAAAAAAAAt7dHQAAAAAAAAAAfDH//w8AAAAAb8+/wwEAAG/N3zsAAPbi5zcAgD35OQ4A7u'
-    'fPY+B0PueAU/l8A07l8w04lc834HQ+54BT+XxjJ55XruR54w6eO67keeNKnjeu5HnjSp43ruR540qe'
-    'N67keeMOnjuu5HnjSp63e7j3Ne5tjXtb497WuLcv4/7WuLc17m2Ne1vj3ta4tzXubY17W+Pe1ri3Ne'
-    '5tjXtb497WuLc17m2Ne/sy7m+Ne1vj3ta4tzWn31v1fNWuodpX7RqqfdWuodpX7RqqfdWuQd+aatdQ'
-    '7at2DdW+atdQ7at2DdW+atdQ7at2DdW+atdQ7at2DfrWVLuGal+1a6j2VbuGal+1a6j2VbuGal+1a6'
-    'j2VbsGfWuqXUO1r9o1VPuqXUO1r9o11Pq+ds/X2lftqu+rdj1tX7Wrvq/aVd9X7XravmpXfV+1q76v'
-    '2lXfV+162r5qV31ftau+r9pV31ftetq+ald9X7Wrvq/aVd9X7XravmpXfV+1q76v2vW0fdWu+r5qV3'
-    '1ftau+r9r1lH2z7796rtpVn6t2nTJX7arPVbtOmat2nTJX7arPVbtOmat21eeqXafMVbvqc9WuU+aq'
-    'XfW5atcpc9Wu+ly165S5ald9rtp1yly1qz5X7Tplrtp1yly1qz5X7TplrtpVn6t2nTL3ub//2vzVc5'
-    'WO2Tkda3OVjtm5SsfsnI61uUrH7FylY3au0jE7p2NtrtIxO1fpmJ3TsTZX6Zidq3TMzulYm6t0zM5V'
-    'OmbndKzNVTpm5yods3OVjtk5HWtzlY7ZuUrH7JyOtblKx+xcpWN2TsfaXKVjdq7SMTtX6Zid07E2V+'
-    'mYnat0zM7pWJurdMzOVTpm5/7vfa+9zs597ry9rQ577b1ib6XDXnuv2FvpsNfeYoe99l6xt9Jhr73F'
-    'DnvtvWJvpcNee4sd9tp7xd5Kh732XrG30mGvvcUOe5+59/0rX7/19+096xy77T3lHLvtPeUcu+095R'
-    'y77T3lHO7nrL2nnGO3vaecY7e9p5zD/Zy195Rz7Lb3lHPstveUc+y295RzuJ+z9p5yjt32nnKO3fae'
-    'co7d9p5yDvdz1t5TzrHb3lPO8aXv//DJ6zef+f23ep+es/bquWevnr16nnLOWs9Tzqnnnr169up5yj'
-    'lrPU85p5579uq5Z6+evXqecs5az1POqeeevXru2atnr56nnLPW85Rz6rlnr569ep5yzrt6vvv4+u0n'
-    'X7/2/c/92p5r9tT77Nm7z569++zZu8+ea/bU++zZu8+evfvs2btv2z1/A96FLUU='
+    'HISTFAAAAP94nJNpmSzMwCByigECmKE0I4i4NnkJg/0HiMB5/gVzGD8aM/3lZ7rPyTSbjektC9N7Fqa'
+    'HzEzbmZi2whCEvZKRaSYj02wwiYng4tFM3lDoC2dhhwh5UyZlJlUMjClCmgpMEUUmQSZ+IBZEojFFCM'
+    'vQRwUxenmZ2MGQFUqz4+CTo4I2pg4dFdQylZWJkYkZCaPyMEUIydPLjMHrssFixuB12XD0HRAwMsFJg'
+    'kwilZHJHHKmjzp41MFDOjhYmFiQEUEmMWqGsvKBd8Fwd/Co/waTC9jYOMAIiSJRhLbKh5x9Q87Bo/YN'
+    'bfsoM4CPhw+IIJAkxnDXN+QcTIpyAPnGh6k='
 ]
 
 @pytest.mark.codec
@@ -503,21 +485,6 @@ def test_hdr_interop():
 
     # check the percentiles. min, max values match
     check_percentiles(histogram, corrected_histogram)
-
-# Encode sample as generated by wrk2 running HdrHistogram_c 0.0.1
-# These are 2 digit precision histograms
-ENCODE_SAMPLE_WRK2_C = [
-    "HISTggAAAL94nO3SywnCUBBA0clLYkS3LrUCi0grlqJgBxZnG5agYGZz5WGEgJt7QIb55P1wf71d"
-    "Io7neCtTbF6/3eF+ivERkiRJkiRJkiRJkiRJkiT9S1Opt1PskWfcTLHDXF+pb1Ev6GdcY44x+wUx"
-    "+y3qgXrGnG8QC+ZSh3xV2Y/n5f0S7zmgn/Pch+9XMMfv+G65zoA878/vAv0eOd+L6xXkrAdy1mv4"
-    "v/2Ws17rz8Vzzt1/qf1+tfR5ll7vY/0nEdkGJg=="
-]
-
-@pytest.mark.codec
-def test_hdr_interop_wrk2():
-    histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, 2)
-    histogram.decode_and_add(ENCODE_SAMPLE_WRK2_C[0])
-
 
 def check_cod_perf():
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, 2)
@@ -585,34 +552,34 @@ def test_log():
     check_percentiles(decoded_hist, decoded_corrected_hist)
     assert(log_reader.get_next_interval_histogram() is None)
 
-JHICCUP_V1_LOG_NAME = "test/jHiccup-2.0.6.logV1.hlog"
+JHICCUP_V2_LOG_NAME = "test/jHiccup-2.0.7S.logV2.hlog"
 # Test input and expected output values
 JHICCUP_CHECKLISTS = [
-    {'target': {'histogram_count': 88,
-                'total_count': 65964,
-                'accumulated_histogram.get_value_at_percentile(99.9)': 1829765119,
-                'accumulated_histogram.get_max_value()': 1888485375,
-                'log_reader.get_start_time_sec()': 1438867590.285}},
+    {'target': {'histogram_count': 62,
+                'total_count': 48761,
+                'accumulated_histogram.get_value_at_percentile(99.9)': 1745879039,
+                'accumulated_histogram.get_max_value()': 1796210687,
+                'log_reader.get_start_time_sec()': 1441812279.474}},
     {'range_start_time_sec': 5,
      'range_end_time_sec': 20,
      'target': {'histogram_count': 15,
-                'total_count': 11213,
-                'accumulated_histogram.get_value_at_percentile(99.9)': 1019740159,
-                'accumulated_histogram.get_max_value()': 1032323071}},
-    {'range_start_time_sec': 50,
-     'range_end_time_sec': 80,
-     'target': {'histogram_count': 29,
-                'total_count': 22630,
-                'accumulated_histogram.get_value_at_percentile(99.9)': 1871708159,
-                'accumulated_histogram.get_max_value()': 1888485375}}
+                'total_count': 11664,
+                'accumulated_histogram.get_value_at_percentile(99.9)': 1536163839,
+                'accumulated_histogram.get_max_value()': 1544552447}},
+    {'range_start_time_sec': 40,
+     'range_end_time_sec': 60,
+     'target': {'histogram_count': 20,
+                'total_count': 15830,
+                'accumulated_histogram.get_value_at_percentile(99.9)': 1779433471,
+                'accumulated_histogram.get_max_value()': 1796210687}}
 ]
 
 @pytest.mark.log
-def test_jHiccup_v1_log():
+def test_jHiccup_v2_log():
     accumulated_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     for checklist in JHICCUP_CHECKLISTS:
         accumulated_histogram.reset()
-        log_reader = HistogramLogReader(JHICCUP_V1_LOG_NAME, accumulated_histogram)
+        log_reader = HistogramLogReader(JHICCUP_V2_LOG_NAME, accumulated_histogram)
 
         histogram_count = 0
         total_count = 0
@@ -624,9 +591,198 @@ def test_jHiccup_v1_log():
             histogram_count += 1
             total_count += decoded_histogram.get_total_count()
             accumulated_histogram.add(decoded_histogram)
-            # These logs use 2-word (16-bit) counters
-            assert(decoded_histogram.get_word_size() == 2)
+            # These logs use 8 byte counters
+            assert(decoded_histogram.get_word_size() == 8)
         for statement in target_numbers:
             assert(eval(statement) == target_numbers[statement])
 
         log_reader.close()
+
+ARRAY_SIZE = 10
+
+@pytest.mark.pyhdrh
+def test_add_array_errors():
+    with pytest.raises(TypeError):
+        add_array()
+    with pytest.raises(TypeError):
+        add_array(100)
+    with pytest.raises(TypeError):
+        add_array(None, None, 0, 0)
+    src_array = (c_uint16 * ARRAY_SIZE)()
+    # negative length
+    with pytest.raises(ValueError):
+        add_array(addressof(src_array), addressof(src_array), -1, sizeof(c_uint16))
+    # invalid word size
+    with pytest.raises(ValueError):
+        add_array(addressof(src_array), addressof(src_array), 0, 0)
+
+def check_add_array(int_type):
+    src_array = (int_type * ARRAY_SIZE)()
+    dst_array = (int_type * ARRAY_SIZE)()
+    expect_added = 0
+    for index in xrange(ARRAY_SIZE):
+        src_array[index] = index
+        expect_added += index
+    added = add_array(addressof(dst_array), addressof(src_array), ARRAY_SIZE, sizeof(int_type))
+    assert(added == expect_added)
+    for index in xrange(ARRAY_SIZE):
+        assert(dst_array[index] == index)
+    # overflow
+    src_array[0] = -1
+    dst_array[0] = -1
+    with pytest.raises(OverflowError):
+        add_array(addressof(dst_array), addressof(src_array), ARRAY_SIZE, sizeof(int_type))
+
+@pytest.mark.pyhdrh
+def test_add_array():
+    for int_type in [c_uint16, c_uint32, c_uint64]:
+        check_add_array(int_type)
+
+@pytest.mark.pyhdrh
+def test_zz_encode_errors():
+    with pytest.raises(TypeError):
+        encode()
+    with pytest.raises(TypeError):
+        encode(None, None, 0, 0)
+    src_array = (c_uint16 * ARRAY_SIZE)()
+    src_array_addr = addressof(src_array)
+    dst_len = 9 * ARRAY_SIZE
+
+    # negative length
+    with pytest.raises(ValueError):
+        encode(src_array_addr, -1, sizeof(c_uint16), 0, dst_len)
+    # dest length too small
+    with pytest.raises(ValueError):
+        encode(src_array_addr, ARRAY_SIZE, 4, 0, 4)
+    # invalid word size
+    with pytest.raises(ValueError):
+        encode(src_array_addr, ARRAY_SIZE, 3, 0, 0)
+    # Null dest ptr
+    with pytest.raises(ValueError):
+        encode(src_array_addr, ARRAY_SIZE, 4, 0, dst_len)
+
+def check_zz_encode(int_type):
+    src_array = (int_type * ARRAY_SIZE)()
+    src_array_addr = addressof(src_array)
+    dst_len = 9 * ARRAY_SIZE
+    dst_array = (c_uint8 * dst_len)()
+    dst_array_addr = addressof(dst_array)
+
+    res = encode(src_array_addr, ARRAY_SIZE, sizeof(int_type), dst_array_addr, dst_len)
+    # should be 1 byte set to 0x13 (10 zeros => value = -10, or 0x13 in zigzag
+    # encoding
+    assert(res == 1)
+    assert(dst_array[0] == 0x13)
+
+    # last counter set to 1
+    # the encoded result should be 2 bytes long
+    # 0x11   (9 zeros => -9 coded as 17)
+    # 0x02   (1 is coded as 2)
+    src_array[ARRAY_SIZE - 1] = 1
+    res = encode(src_array_addr, ARRAY_SIZE, sizeof(int_type), dst_array_addr, dst_len)
+    assert(res == 2)
+    assert(dst_array[0] == 0x11)
+    assert(dst_array[1] == 0x02)
+
+    # all counters set to 1, we should get a zigzag encoded of
+    # 10 bytes all set to 0x02 (in zigzag encoding 1 is coded as 2)
+    for index in xrange(ARRAY_SIZE):
+        src_array[index] = 1
+    res = encode(src_array_addr, ARRAY_SIZE, sizeof(int_type), dst_array_addr, dst_len)
+    assert(res == ARRAY_SIZE)
+    for index in xrange(ARRAY_SIZE):
+        assert(dst_array[index] == 2)
+
+@pytest.mark.pyhdrh
+def test_zz_encode():
+    for int_type in [c_uint16, c_uint32, c_uint64]:
+        check_zz_encode(int_type)
+
+# Few malicious V2 encodes using ZiZag LEB128/9 bytes
+# Valid large value overflows smaller size dest counter
+# This is the largest positive number (zigzag odd numbers are positive)
+LARGE_POSITIVE_VALUE = '\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+# This is the largest negative number
+LARGE_NEGATIVE_VALUE = '\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+#
+# A simple 1 at index 0, followed by a
+# large enough negative value to be dangerous: -2147483648 (smallest negative signed 32 bit)
+INDEX_SKIPPER_VALUE = '\x01\x02\xFF\xFF\xFF\xFF\x0F\x02'
+# Truncated end
+TRUNCATED_VALUE = '\xFF\xFF'
+
+@pytest.mark.pyhdrh
+def test_zz_decode_errors():
+    with pytest.raises(TypeError):
+        decode(None, None, 0, 0)
+    dst_array = (c_uint16 * ARRAY_SIZE)()
+    # negative array size
+    with pytest.raises(IndexError):
+        decode(' ', 0, addressof(dst_array), -1, sizeof(c_uint16))
+    # invalid word size
+    with pytest.raises(ValueError):
+        decode(' ', 0, addressof(dst_array), ARRAY_SIZE, 3)
+    # read index negative
+    with pytest.raises(IndexError):
+        decode('', -1, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    # Truncated end
+    with pytest.raises(ValueError):
+        decode(TRUNCATED_VALUE, 0, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    # Too large positive value for this counter size
+    with pytest.raises(OverflowError):
+        decode(LARGE_POSITIVE_VALUE, 0, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    # Negative overflow
+    with pytest.raises(OverflowError):
+        decode(LARGE_NEGATIVE_VALUE, 0, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    # zero count skip index out of bounds
+    with pytest.raises(IndexError):
+        decode(INDEX_SKIPPER_VALUE, 0, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    # read index too large => empty results
+    res = decode('BUMMER', 8, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    assert(res['total'] == 0)
+
+def check_zz_identity(src_array, int_type, min_nz_index, max_nz_index, total_count, offset):
+    dst_len = (sizeof(int_type) + 1) * ARRAY_SIZE
+    dst = (c_uint8 * (offset + dst_len))()
+
+    varint_len = encode(addressof(src_array), ARRAY_SIZE, sizeof(int_type),
+                        addressof(dst) + offset, dst_len)
+    varint_string = string_at(dst, varint_len + offset)
+
+    dst_array = (int_type * ARRAY_SIZE)()
+    res = decode(varint_string, offset, addressof(dst_array), ARRAY_SIZE, sizeof(int_type))
+    assert(res['total'] == total_count)
+    if total_count:
+        assert(res['min_nonzero_index'] == min_nz_index)
+        assert(res['max_nonzero_index'] == max_nz_index)
+    for index in xrange(ARRAY_SIZE):
+        assert(dst_array[index] == src_array[index])
+
+# A large positive value that can fit 16-bit signed
+ZZ_COUNTER_VALUE = 30000
+
+def check_zz_decode(int_type, hdr_len):
+    src_array = (int_type * ARRAY_SIZE)()
+    check_zz_identity(src_array, int_type, 0, 0, 0, hdr_len)
+
+    # last counter set to ZZ_COUNTER_VALUE
+    # min=max=ARRAY_SIZE-1
+    src_array[ARRAY_SIZE - 1] = ZZ_COUNTER_VALUE
+    check_zz_identity(src_array, int_type, ARRAY_SIZE - 1,
+                      ARRAY_SIZE - 1, ZZ_COUNTER_VALUE, hdr_len)
+
+    # all counters set to ZZ_COUNTER_VALUE
+    for index in xrange(ARRAY_SIZE):
+        src_array[index] = ZZ_COUNTER_VALUE
+    check_zz_identity(src_array, int_type, 0, ARRAY_SIZE - 1,
+                      ZZ_COUNTER_VALUE * ARRAY_SIZE, hdr_len)
+
+@pytest.mark.pyhdrh
+def test_zz_decode():
+    for int_type in [c_uint16, c_uint32, c_uint64]:
+        for hdr_len in [0, 8]:
+            check_zz_decode(int_type, hdr_len)
+
+def hex_dump(label, str):
+    print label
+    print ':'.join(x.encode('hex') for x in str)

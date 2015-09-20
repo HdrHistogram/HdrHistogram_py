@@ -36,7 +36,7 @@ from hdrh.histogram import HdrHistogram
 
 class HistogramLogWriter(object):
 
-    HISTOGRAM_LOG_FORMAT_VERSION = "1.1"
+    HISTOGRAM_LOG_FORMAT_VERSION = "1.2"
 
     def __init__(self, output_file):
         '''Constructs a new HistogramLogWriter that will write into the specified file.

@@ -111,21 +111,24 @@ class HdrHistogram(object):
         self.min_value = sys.maxint
         self.max_value = 0
         self.total_count = 0
+        self.counts_len = (self.bucket_count + 1) * (self.sub_bucket_count / 2)
+        self.word_size = word_size
 
         if hdr_payload:
             payload = hdr_payload.payload
-            self.counts_len = hdr_payload.counts_len
-            self.int_to_double_conversion_ratio = payload['conversion_ratio_bits']
+            self.int_to_double_conversion_ratio = payload.conversion_ratio_bits
+            results = hdr_payload.init_counts(self.counts_len)
+            if results['total']:
+                self.set_internal_tacking_values(results['min_nonzero_index'],
+                                                 results['max_nonzero_index'],
+                                                 results['total'])
         else:
-            self.counts_len = (self.bucket_count + 1) * (self.sub_bucket_count / 2)
             self.int_to_double_conversion_ratio = 1.0
 
         # to encode this histogram into a compressed/base64 format ready
         # to be exported
         self.b64_wrap = b64_wrap
-        self.encoder = HdrHistogramEncoder(self, b64_wrap,
-                                           hdr_payload,
-                                           word_size)
+        self.encoder = HdrHistogramEncoder(self, b64_wrap, hdr_payload)
         # the counters reside directly in the payload object
         # allocated by the encoder
         # so that compression for wire transfer can be done without copy
@@ -414,24 +417,6 @@ class HdrHistogram(object):
         '''
         return self.encoder.encode()
 
-    def decode_and_add(self, encoded_histogram):
-        '''Decode an encoded histogram and add it to this histogram
-        Args:
-            encoded_histogram (string) an encoded histogram
-                following the V1 format, such as one returned by the encode() method
-        Exception:
-            TypeError in case of base64 decode error
-            HdrCookieException:
-                the main header has an invalid cookie
-                the compressed payload header has an invalid cookie
-            HdrLengthException:
-                the decompressed size is too small for the HdrPayload structure
-                or is not aligned or is too large for the passed payload class
-            zlib.error:
-                in case of zlib decompression error
-        '''
-        self.encoder.decode_and_add(encoded_histogram)
-
     def adjust_internal_tacking_values(self,
                                        min_non_zero_index,
                                        max_index,
@@ -450,6 +435,23 @@ class HdrHistogram(object):
             min_value = self.get_value_from_index(min_non_zero_index)
             self.min_value = min(self.min_value, min_value)
         self.total_count += total_added
+
+    def set_internal_tacking_values(self,
+                                    min_non_zero_index,
+                                    max_index,
+                                    total_added):
+        '''Called during decoding and add to adjust the new min/max value and
+        total count
+
+        Args:
+            min_non_zero_index min nonzero index of all added counts (-1 if none)
+            max_index max index of all added counts (-1 if none)
+        '''
+        if max_index >= 0:
+            self.max_value = self.get_highest_equivalent_value(self.get_value_from_index(max_index))
+        if min_non_zero_index >= 0:
+            self.min_value = self.get_value_from_index(min_non_zero_index)
+        self.total_count = total_added
 
     def get_counts_array_index(self, value):
         '''Return the index in the counts array for a given value
@@ -494,23 +496,18 @@ class HdrHistogram(object):
         highest_recordable_value = \
             self.get_highest_equivalent_value(self.get_value_from_index(self.counts_len - 1))
         if highest_recordable_value < other_hist.get_max_value():
-            # no auto resize available yet
-            raise IndexError("The other histogram includes values that do not fit")
+            raise IndexError("The other histogram includes values that do not fit %d < %d" %
+                             (highest_recordable_value, other_hist.get_max_value()))
 
         if (self.bucket_count == other_hist.bucket_count) and \
            (self.sub_bucket_count == other_hist.sub_bucket_count) and \
-           (self.unit_magnitude == other_hist.unit_magnitude):
-            # (self.get_normalizing_index_offset() ==
-            # otherHistogram.get_normalizing_index_offset()))
-            # Counts arrays are of the same length and meaning, so we can just
-            # iterate and add directly:
-            observed_other_total_count = 0
-            for index in xrange(other_hist.counts_len):
-                other_count = other_hist.get_count_at_index(index)
-                if other_count > 0:
-                    self.counts[index] += other_count
-                    observed_other_total_count += other_count
-            self.total_count += observed_other_total_count
+           (self.unit_magnitude == other_hist.unit_magnitude) and \
+           (self.word_size == other_hist.word_size):
+
+            # do an in-place addition of one array to another
+            self.encoder.add(other_hist.encoder)
+
+            self.total_count += other_hist.get_total_count()
             self.max_value = max(self.max_value, other_hist.get_max_value())
             self.min_value = min(self.get_min_value(), other_hist.get_min_value())
         else:
@@ -526,8 +523,27 @@ class HdrHistogram(object):
         self.end_time_stamp_msec = \
             max(self.end_time_stamp_msec, other_hist.end_time_stamp_msec)
 
+    def decode_and_add(self, encoded_histogram):
+        '''Decode an encoded histogram and add it to this histogram
+        Args:
+            encoded_histogram (string) an encoded histogram
+                following the V1 format, such as one returned by the encode() method
+        Exception:
+            TypeError in case of base64 decode error
+            HdrCookieException:
+                the main header has an invalid cookie
+                the compressed payload header has an invalid cookie
+            HdrLengthException:
+                the decompressed size is too small for the HdrPayload structure
+                or is not aligned or is too large for the passed payload class
+            zlib.error:
+                in case of zlib decompression error
+        '''
+        other_hist = HdrHistogram.decode(encoded_histogram, self.b64_wrap)
+        self.add(other_hist)
+
     @staticmethod
-    def decode(encoded_histogram):
+    def decode(encoded_histogram, b64_wrap=True):
         '''Decode an encoded histogram and return a new histogram instance that
         has been initialized with the decoded content
         Return:
@@ -543,13 +559,13 @@ class HdrHistogram(object):
             zlib.error:
                 in case of zlib decompression error
         '''
-        hdr_payload = HdrHistogramEncoder.decode(encoded_histogram)
+        hdr_payload = HdrHistogramEncoder.decode(encoded_histogram, b64_wrap)
         payload = hdr_payload.payload
-        histogram = HdrHistogram(payload['lowest_trackable_value'],
-                                 payload['highest_trackable_value'],
-                                 payload['significant_figures'],
+        histogram = HdrHistogram(payload.lowest_trackable_value,
+                                 payload.highest_trackable_value,
+                                 payload.significant_figures,
                                  hdr_payload=hdr_payload)
         return histogram
 
     def get_word_size(self):
-        return self.encoder.payload.word_size
+        return self.word_size
