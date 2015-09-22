@@ -105,7 +105,7 @@ For additional help on how to use the API:
 - browse through the python code and check the API documentation in the comment section for each method (where available)
 - the best documentation is by looking at the test code under the test directory
 
-The test code (https://github.com/ahothan/hdrhistogram/blob/master/test/test_hdrhistogram.py) pretty much covers every API.
+The test code (https://github.com/HdrHistogram/HdrHistogram_py/blob/master/test/test_hdrhistogram.py) pretty much covers every API.
 
 Acknowledgements
 ----------------
@@ -143,7 +143,7 @@ Install the unit test automation harness tox and hdrhistogram from github:
 
     pip install tox
     # cd to the proper location to clone the repository
-    git clone https://github.com/ahothan/hdrhistogram.git
+    git clone https://github.com/HdrHistogram/HdrHistogram_py.git
     cd hdrhistogram
 
 Running tox will execute 2 targets:
@@ -448,7 +448,7 @@ Contribution
 ------------
 External contribution and forks are welcome.
 
-Changes can be contributed back using preferably GerritHub (https://review.gerrithub.io/#/q/project:ahothan/hdrhistogram)
+Changes can be contributed back using preferably GerritHub (https://review.gerrithub.io/#/q/project:HdrHistogram/HdrHistogram_py)
 
 GitHub pull requests can also be considered.
 
@@ -456,5 +456,5 @@ GitHub pull requests can also be considered.
 Links
 -----
 
-* Source: https://github.com/ahothan/hdrhistogram.git
+* Source: https://github.com/HdrHistogram/HdrHistogram_py.git
 

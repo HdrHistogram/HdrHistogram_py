@@ -1,4 +1,4 @@
 [gerrit]
 host=review.gerrithub.io
 port=29418
-project=ahothan/hdrhistogram.git
+project=HdrHistogram/HdrHistogram_py.git
