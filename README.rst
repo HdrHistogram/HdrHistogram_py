@@ -199,8 +199,8 @@ This library provides a solution for the aggregation part of the problem:
 
 - provide python APIs to easily and efficiently:
 
-    - compress an histogram instance into a transportable string
-    - decompress a compressed histogram and add it to an existing histogram
+  * compress an histogram instance into a transportable string
+  * decompress a compressed histogram and add it to an existing histogram
 
 Refer to the unit test code (test/test_hdrhistogram.py) to see how these APIs can be used.
 
@@ -225,15 +225,17 @@ Encoding and decoding in the python version is very fast thanks to the use of:
 - integrated C extensions that have been developed to handle the low-level byte encoding/decoding work at native speed
 - native compression library (using zlib)
 
-On a macbook pro (2.3 GHz Intel Core i7):
+On a macbook pro (Intel Core i7 @ 2.3GHz) and Linux server (Intel(R) Xeon(R) CPU E5-2665 @ 2.40GHz):
 
-+---------------------------+----------+
-| Operation                 |     Time |
-+===========================+==========+
-| record a value            |   2 usec |
-| encode typical histogram  | 100 usec |
-| decode typical histogram  | 160 usec |
-+---------------------------+----------+
++---------------------------+-----------+--------+
+| Operation Time in usec    |   Macbook |  Linux |
++===========================+===========+========+
+| record a value            |        2  |    1.5 |
++---------------------------+-----------+--------+
+| encode typical histogram  |      100  |   96   |
++---------------------------+-----------+--------+
+| decode typical histogram  |      160  |  138   |
++---------------------------+-----------+--------+
 
 
 The typical histogram is defined as one that has 30% of 64-bit buckets filled with
@@ -248,6 +250,7 @@ for encoding and decoding the typical histogram 1000 times (so the time values s
 are seconds for 1000 decodes/decodes).
 
 Example of run on the same macbook pro:
+
 .. code::
 
     $ tox -e py27 '-k test_cod_perf --runperf'
