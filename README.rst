@@ -7,7 +7,7 @@ High Dynamic Range Histogram python implementation
 .. image:: https://badges.gitter.im/Join Chat.svg
    :target: https://gitter.im/HdrHistogram/HdrHistogram
 
-This repository contains a port to python of portions of the HDR Histogram
+This repository contains a port to python of most of the original Java HDR Histogram
 library:
 
 - Basic histogram value recording
@@ -28,14 +28,14 @@ Python API
 ----------
 Users of this library can generally play 2 roles (often both):
 
-- histogram provisioning (record values)
-- histogram query (for display or analysis)
+- record values into 1 or more histograms (histogram provisioning)
+- analyze and display histogram content and characteristics (histogram query)
 
-In distributed cases, histogram provisioning can be be done remotely then
+In distributed cases, histogram provisioning can be be done remotely (and possibly in multiple locations) then
 aggregated in a central place for analysis.
 
 A histogram instance can be created using the HdrHistogram class and specifying the
-minimum and maximum trackable value and the number of precision digits.
+minimum and maximum trackable value and the number of precision digits desired.
 For example to create a histogram that can count values in the [1..3600000] range and
 1% precision (this could be for example to track latencies in the range [1 msec..1 hour]):
 
@@ -44,7 +44,7 @@ For example to create a histogram that can count values in the [1..3600000] rang
      histogram = HdrHistogram(1, 60 * 60 * 1000, 2)
 
 By default counters are 64-bit while 16 or 32-bit counters can be specified (word_size
-option set to 2 or 4).
+option set to 2 or 4 bytes).
 Note that counter overflow is not tested in this version so be careful when using
 smaller counter sizes.
 
@@ -106,15 +106,6 @@ For additional help on how to use the API:
 - the best documentation is by looking at the test code under the test directory
 
 The test code (https://github.com/HdrHistogram/HdrHistogram_py/blob/master/test/test_hdrhistogram.py) pretty much covers every API.
-
-Acknowledgements
-----------------
-
-The python code was directly ported from the original HDR Histogram Java and C libraries:
-
-* https://github.com/HdrHistogram/HdrHistogram.git
-* https://github.com/HdrHistogram/HdrHistogram_c.git
-
 
 Installation
 ------------
@@ -218,12 +209,12 @@ This format is compatible with the HdrHistogram Java and C implementations.
 
 Performance
 -----------
-Histogram value recording has the same cost characteristics than the Java version
+Histogram value recording has the same cost characteristics than the original Java version
 since it is a direct port (fixed cost for CPU and reduced memory usage).
-Encoding and decoding in the python version is very fast thanks to the use of:
+Encoding and decoding in the python version is very fast and close to native performance thanks to the use of:
 
-- integrated C extensions that have been developed to handle the low-level byte encoding/decoding work at native speed
-- native compression library (using zlib)
+- integrated C extensions (native C code called from python) that have been developed to handle the low-level byte encoding/decoding/addition work at native speed
+- native compression library (zlib and base64)
 
 On a macbook pro (Intel Core i7 @ 2.3GHz) and Linux server (Intel(R) Xeon(R) CPU E5-2665 @ 2.40GHz):
 
@@ -232,9 +223,9 @@ On a macbook pro (Intel Core i7 @ 2.3GHz) and Linux server (Intel(R) Xeon(R) CPU
 +===========================+===========+========+
 | record a value            |        2  |    1.5 |
 +---------------------------+-----------+--------+
-| encode typical histogram  |      100  |   96   |
+| encode typical histogram  |      100  |   90   |
 +---------------------------+-----------+--------+
-| decode typical histogram  |      160  |  138   |
+| decode and add            |      150  |  125   |
 +---------------------------+-----------+--------+
 
 
@@ -242,7 +233,9 @@ The typical histogram is defined as one that has 30% of 64-bit buckets filled wi
 sequential values starting at 20% of the array, for a range of 1 usec to 24 hours
 and 2 digits precision. This represents a total of 3968 buckets, of which
 the first 793 are zeros, the next 1190 buckets have a sequential/unique value and all
-remaining buckets are zeros, for an encoded length of 3116 bytes.
+remaining buckets are zeros, for an encoded length of 3116 bytes. Most real-world histograms
+have a much sparser pattern that will yield a lower encoding and decoding time.
+Decode and add will decode the encoded histogram and add its content to an existing histogram.
 
 To measure the performance of encoding and decoding and get the profiling, use the
 --runperf option. The 2 profiling functions will provide the profiling information
@@ -451,6 +444,15 @@ External contribution and forks are welcome.
 Changes can be contributed back using preferably GerritHub (https://review.gerrithub.io/#/q/project:HdrHistogram/HdrHistogram_py)
 
 GitHub pull requests can also be considered.
+
+
+Acknowledgements
+----------------
+
+The python code was directly ported from the original HDR Histogram Java and C libraries:
+
+* https://github.com/HdrHistogram/HdrHistogram.git
+* https://github.com/HdrHistogram/HdrHistogram_c.git
 
 
 Links

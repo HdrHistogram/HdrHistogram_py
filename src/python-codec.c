@@ -184,7 +184,6 @@ static PyObject *py_hdr_encode(PyObject *self, PyObject *args) {
     int word_size;    /* i: word size in bytes (2,4,8) for each array element */
     uint8_t *dest;    /* l: where to encode */
     int dest_len;     /* i: length of the destination buffer, must be >=(word_size+1)*max_index */
-    int max_size;
     get_array_entry get_entry;
     int index;
     int write_index;
@@ -269,8 +268,6 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
     uint64_t total_count = 0;
     int min_nonzero_index = -1;
     int max_nonzero_index = 0;
-
-    PyObject *res;
 
     if (!PyArg_ParseTuple(args, "t#ilii", &src, &src_len,
                           &read_index,
