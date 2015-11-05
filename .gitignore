@@ -56,6 +56,7 @@ ChangeLog
 .*sw?
 *cscope*
 .ropeproject/
+.idea/
 
 *.local*
 *.json
