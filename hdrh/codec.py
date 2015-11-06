@@ -22,6 +22,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
+from __future__ import print_function
+from builtins import str
+from builtins import range
+from builtins import object
 
 import base64
 import ctypes
@@ -233,10 +237,10 @@ class HdrPayload(object):
 
     def dump(self, label=None):
         if label:
-            print 'Payload Dump ' + label
-        print '   payload cookie: %x' % (self.payload.cookie)
-        print '   payload_len: %d' % (self.payload.payload_len)
-        print '   counts_len: %d' % (self.counts_len)
+            print('Payload Dump ' + label)
+        print('   payload cookie: %x' % (self.payload.cookie))
+        print('   payload_len: %d' % (self.payload.payload_len))
+        print('   counts_len: %d' % (self.counts_len))
         dump_payload(self.get_counts(), self.counts_len)
 
 
@@ -297,7 +301,7 @@ class HdrHistogramEncoder(object):
         if self.b64_wrap:
             self.header.length = len(cpayload)
             header_str = ctypes.string_at(addressof(self.header), ext_header_size)
-            return base64.b64encode(''.join([header_str, cpayload]))
+            return base64.b64encode(header_str + cpayload)
         return cpayload
 
     @staticmethod
@@ -355,19 +359,19 @@ class HdrHistogramEncoder(object):
 def _dump_series(start, stop, count):
     if stop <= start + 1:
         # single index range
-        print '[%06d] %d' % (start, count)
+        print('[%06d] %d' % (start, count))
     else:
-        print '[%06d] %d (%d identical)' % (start, count, stop - start)
+        print('[%06d] %d (%d identical)' % (start, count, stop - start))
 
 def dump_payload(counts, max_index):
-    print 'counts array size = %d entries' % (max_index)
+    print('counts array size = %d entries' % (max_index))
     if not max_index:
         return
     series_start_index = 0
     total_count = 0
     current_series_count = counts[0]
     index = 0
-    for index in xrange(1, max_index):
+    for index in range(1, max_index):
         total_count += counts[index]
         if counts[index] != current_series_count:
             # dump the current series
@@ -377,8 +381,8 @@ def dump_payload(counts, max_index):
             series_start_index = index
     # there is always a last series to dump
     _dump_series(series_start_index, index, counts[index])
-    print '[%06d] --END-- total count=%d' % (index + 1, total_count)
+    print('[%06d] --END-- total count=%d' % (index + 1, total_count))
 
 def hex_dump(label, str):
-    print label
-    print ':'.join(x.encode('hex') for x in str)
+    print(label)
+    print(':'.join(x.encode('hex') for x in str))

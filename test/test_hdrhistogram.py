@@ -19,6 +19,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
+from __future__ import division
+from __future__ import print_function
+from builtins import range
 import cProfile
 import datetime
 import pytest
@@ -106,15 +109,15 @@ def test_scaled_highest_equiv_value():
 def load_histogram():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     # record this value with a count of 10,000
-    histogram.record_value(1000L, 10000)
-    histogram.record_value(100000000L)
+    histogram.record_value(1000, 10000)
+    histogram.record_value(100000000)
     return histogram
 
 def load_corrected_histogram():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     # record this value with a count of 10,000
-    histogram.record_corrected_value(1000L, INTERVAL, 10000)
-    histogram.record_corrected_value(100000000L, INTERVAL)
+    histogram.record_corrected_value(1000, INTERVAL, 10000)
+    histogram.record_corrected_value(100000000, INTERVAL)
     return histogram
 
 def check_percentile(hist, percentile, value, variation):
@@ -316,19 +319,19 @@ def test_mean_stddev():
     assert(histogram.get_stddev() == 1000.5)
 
 HDR_PAYLOAD_COUNTS = 1000
-HDR_PAYLOAD_PARTIAL_COUNTS = HDR_PAYLOAD_COUNTS / 2
+HDR_PAYLOAD_PARTIAL_COUNTS = HDR_PAYLOAD_COUNTS // 2
 
 def fill_counts(payload, last_index, start=0):
     # note that this function should only be used for
     # raw payload level operations, shoud not be used for payloads that are
     # created from a histogram, see fill_hist_counts
     counts = payload.get_counts()
-    for index in xrange(start, last_index):
+    for index in range(start, last_index):
         counts[index] = index
 
 def check_counts(payload, last_index, multiplier=1, start=0):
     counts = payload.get_counts()
-    for index in xrange(start, last_index):
+    for index in range(start, last_index):
         assert(counts[index] == multiplier * index)
 
 def check_hdr_payload(counter_size):
@@ -356,7 +359,7 @@ def test_hdr_payload():
 def test_hdr_payload_exceptions():
     # test invalid zlib compressed buffer
     with pytest.raises(zlib.error):
-        HdrPayload(2, compressed_payload="junk data")
+        HdrPayload(2, compressed_payload=b'junk data')
 
     # unsupported word size
     with pytest.raises(ValueError):
@@ -374,12 +377,12 @@ def test_hdr_payload_exceptions():
 def fill_hist_counts(histogram, last_index, start=0):
     # fill the counts of a given histogram and update the min/max/total count
     # accordingly
-    for index in xrange(start, last_index):
+    for index in range(start, last_index):
         value_from_index = histogram.get_value_from_index(index)
         histogram.record_value(value_from_index, index)
 
 def check_hist_counts(histogram, last_index, multiplier=1, start=0):
-    for index in xrange(start, last_index):
+    for index in range(start, last_index):
         assert(histogram.get_count_at_index(index) == multiplier * index)
 
 # This is the max latency used by wrk2
@@ -393,8 +396,8 @@ def check_hist_encode(word_size,
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, digits,
                              word_size=word_size)
     if fill_count_percent:
-        fill_start_index = (fill_start_percent * histogram.counts_len) / 100
-        fill_to_index = fill_start_index + (fill_count_percent * histogram.counts_len) / 100
+        fill_start_index = (fill_start_percent * histogram.counts_len) // 100
+        fill_to_index = fill_start_index + (fill_count_percent * histogram.counts_len) // 100
         fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
     assert(len(b64) == expected_compressed_length)
@@ -488,30 +491,30 @@ def test_hdr_interop():
 
 def check_cod_perf():
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, 2)
-    fill_start_index = (20 * histogram.counts_len) / 100
-    fill_to_index = fill_start_index + (30 * histogram.counts_len) / 100
+    fill_start_index = (20 * histogram.counts_len) // 100
+    fill_to_index = fill_start_index + (30 * histogram.counts_len) // 100
     fill_hist_counts(histogram, fill_to_index, fill_start_index)
 
     # encode 1000 times
     start = datetime.datetime.now()
-    for _ in xrange(1000):
+    for _ in range(1000):
         histogram.encode()
     delta = datetime.datetime.now() - start
-    print delta
+    print(delta)
 
 def check_dec_perf():
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, 2)
-    fill_start_index = (20 * histogram.counts_len) / 100
-    fill_to_index = fill_start_index + (30 * histogram.counts_len) / 100
+    fill_start_index = (20 * histogram.counts_len) // 100
+    fill_to_index = fill_start_index + (30 * histogram.counts_len) // 100
     fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
 
     # decode and add to self 1000 times
     start = datetime.datetime.now()
-    for _ in xrange(1000):
+    for _ in range(1000):
         histogram.decode_and_add(b64)
     delta = datetime.datetime.now() - start
-    print delta
+    print(delta)
 
 @pytest.mark.perf
 def test_cod_perf():
@@ -620,12 +623,12 @@ def check_add_array(int_type):
     src_array = (int_type * ARRAY_SIZE)()
     dst_array = (int_type * ARRAY_SIZE)()
     expect_added = 0
-    for index in xrange(ARRAY_SIZE):
+    for index in range(ARRAY_SIZE):
         src_array[index] = index
         expect_added += index
     added = add_array(addressof(dst_array), addressof(src_array), ARRAY_SIZE, sizeof(int_type))
     assert(added == expect_added)
-    for index in xrange(ARRAY_SIZE):
+    for index in range(ARRAY_SIZE):
         assert(dst_array[index] == index)
     # overflow
     src_array[0] = -1
@@ -686,11 +689,11 @@ def check_zz_encode(int_type):
 
     # all counters set to 1, we should get a zigzag encoded of
     # 10 bytes all set to 0x02 (in zigzag encoding 1 is coded as 2)
-    for index in xrange(ARRAY_SIZE):
+    for index in range(ARRAY_SIZE):
         src_array[index] = 1
     res = encode(src_array_addr, ARRAY_SIZE, sizeof(int_type), dst_array_addr, dst_len)
     assert(res == ARRAY_SIZE)
-    for index in xrange(ARRAY_SIZE):
+    for index in range(ARRAY_SIZE):
         assert(dst_array[index] == 2)
 
 @pytest.mark.pyhdrh
@@ -701,15 +704,15 @@ def test_zz_encode():
 # Few malicious V2 encodes using ZiZag LEB128/9 bytes
 # Valid large value overflows smaller size dest counter
 # This is the largest positive number (zigzag odd numbers are positive)
-LARGE_POSITIVE_VALUE = '\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+LARGE_POSITIVE_VALUE = b'\xFE\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
 # This is the largest negative number
-LARGE_NEGATIVE_VALUE = '\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
+LARGE_NEGATIVE_VALUE = b'\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'
 #
 # A simple 1 at index 0, followed by a
 # large enough negative value to be dangerous: -2147483648 (smallest negative signed 32 bit)
-INDEX_SKIPPER_VALUE = '\x01\x02\xFF\xFF\xFF\xFF\x0F\x02'
+INDEX_SKIPPER_VALUE = b'\x01\x02\xFF\xFF\xFF\xFF\x0F\x02'
 # Truncated end
-TRUNCATED_VALUE = '\xFF\xFF'
+TRUNCATED_VALUE = b'\xFF\xFF'
 
 @pytest.mark.pyhdrh
 def test_zz_decode_errors():
@@ -718,13 +721,13 @@ def test_zz_decode_errors():
     dst_array = (c_uint16 * ARRAY_SIZE)()
     # negative array size
     with pytest.raises(IndexError):
-        decode(' ', 0, addressof(dst_array), -1, sizeof(c_uint16))
+        decode(b' ', 0, addressof(dst_array), -1, sizeof(c_uint16))
     # invalid word size
     with pytest.raises(ValueError):
-        decode(' ', 0, addressof(dst_array), ARRAY_SIZE, 3)
+        decode(b' ', 0, addressof(dst_array), ARRAY_SIZE, 3)
     # read index negative
     with pytest.raises(IndexError):
-        decode('', -1, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+        decode(b'', -1, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
     # Truncated end
     with pytest.raises(ValueError):
         decode(TRUNCATED_VALUE, 0, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
@@ -738,7 +741,7 @@ def test_zz_decode_errors():
     with pytest.raises(IndexError):
         decode(INDEX_SKIPPER_VALUE, 0, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
     # read index too large => empty results
-    res = decode('BUMMER', 8, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
+    res = decode(b'BUMMER', 8, addressof(dst_array), ARRAY_SIZE, sizeof(c_uint16))
     assert(res['total'] == 0)
 
 def check_zz_identity(src_array, int_type, min_nz_index, max_nz_index, total_count, offset):
@@ -755,7 +758,7 @@ def check_zz_identity(src_array, int_type, min_nz_index, max_nz_index, total_cou
     if total_count:
         assert(res['min_nonzero_index'] == min_nz_index)
         assert(res['max_nonzero_index'] == max_nz_index)
-    for index in xrange(ARRAY_SIZE):
+    for index in range(ARRAY_SIZE):
         assert(dst_array[index] == src_array[index])
 
 # A large positive value that can fit 16-bit signed
@@ -772,7 +775,7 @@ def check_zz_decode(int_type, hdr_len):
                       ARRAY_SIZE - 1, ZZ_COUNTER_VALUE, hdr_len)
 
     # all counters set to ZZ_COUNTER_VALUE
-    for index in xrange(ARRAY_SIZE):
+    for index in range(ARRAY_SIZE):
         src_array[index] = ZZ_COUNTER_VALUE
     check_zz_identity(src_array, int_type, 0, ARRAY_SIZE - 1,
                       ZZ_COUNTER_VALUE * ARRAY_SIZE, hdr_len)
@@ -784,5 +787,5 @@ def test_zz_decode():
             check_zz_decode(int_type, hdr_len)
 
 def hex_dump(label, str):
-    print label
-    print ':'.join(x.encode('hex') for x in str)
+    print(label)
+    print(':'.join(x.encode('hex') for x in str))

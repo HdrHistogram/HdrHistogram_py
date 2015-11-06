@@ -21,6 +21,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
+from __future__ import division
+from builtins import object
 from abc import abstractmethod
 import math
 
@@ -103,7 +105,7 @@ class AbstractHdrIterator(object):
     def has_next(self):
         return self.total_count_to_current_index < self.total_count
 
-    def next(self):
+    def __next__(self):
         if self.total_count != self.histogram.total_count:
             raise HdrConcurrentModificationException()
         while self.has_next():
@@ -303,8 +305,7 @@ class PercentileIterator(AbstractHdrIterator):
         self.percentile_to_iterate_from = self.percentile_to_iterate_to
         percentile_gap = 100.0 - (self.percentile_to_iterate_to)
         if percentile_gap:
-            half_distance = math.pow(2,
-                                     (math.log(100 / percentile_gap) / math.log(2)) + 1)
+            half_distance = math.pow(2, (math.log(100 / percentile_gap) / math.log(2)) + 1)
             percentile_reporting_ticks = self.percentile_ticks_per_half_distance * half_distance
             self.percentile_to_iterate_to += 100.0 / percentile_reporting_ticks
 

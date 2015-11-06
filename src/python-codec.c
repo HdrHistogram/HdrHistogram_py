@@ -269,7 +269,7 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
     int min_nonzero_index = -1;
     int max_nonzero_index = 0;
 
-    if (!PyArg_ParseTuple(args, "t#ilii", &src, &src_len,
+    if (!PyArg_ParseTuple(args, "s#ilii", &src, &src_len,
                           &read_index,
                           &vdst, &max_index,
                           &word_size)) {
@@ -460,6 +460,24 @@ static PyMethodDef HdrhMethods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-PyMODINIT_FUNC initpyhdrh(void) {
-    (void) Py_InitModule("pyhdrh", HdrhMethods);
-}
+#if PY_MAJOR_VERSION >= 3
+    static struct PyModuleDef hdrhdef = {
+        PyModuleDef_HEAD_INIT,
+        "pyhdrh",            /* m_name */
+        NULL,                /* m_doc */
+        -1,                  /* m_size */
+        HdrhMethods,         /* m_methods */
+        NULL,                /* m_reload */
+        NULL,                /* m_traverse */
+        NULL,                /* m_clear */
+        NULL,                /* m_free */
+    };
+
+    PyMODINIT_FUNC PyInit_pyhdrh(void) {
+        return PyModule_Create(&hdrhdef);
+    }
+#else
+    PyMODINIT_FUNC initpyhdrh(void) {
+        (void) Py_InitModule("pyhdrh", HdrhMethods);
+    }
+#endif

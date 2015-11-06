@@ -29,6 +29,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
+from __future__ import division
+from builtins import object
 import datetime
 import re
 import sys
@@ -86,8 +88,8 @@ class HistogramLogWriter(object):
         self.log.write("%f,%f,%f,%s\n" %
                        (start_time_stamp_sec,
                         end_time_stamp_sec - start_time_stamp_sec,
-                        histogram.get_max_value() / max_value_unit_ratio,
-                        cpayload))
+                        histogram.get_max_value() // max_value_unit_ratio,
+                        cpayload.decode('utf-8')))
 
     def output_start_time(self, start_time_msec):
         '''Log a start time in the log.
@@ -170,7 +172,7 @@ class HistogramLogReader(object):
     def _decode_next_interval_histogram(self,
                                         dest_histogram,
                                         range_start_time_sec=0.0,
-                                        range_end_time_sec=sys.maxint,
+                                        range_end_time_sec=sys.maxsize,
                                         absolute=False):
         '''Read the next interval histogram from the log, if interval falls
         within an absolute or relative time range.
@@ -287,7 +289,7 @@ class HistogramLogReader(object):
 
     def get_next_interval_histogram(self,
                                     range_start_time_sec=0.0,
-                                    range_end_time_sec=sys.maxint,
+                                    range_end_time_sec=sys.maxsize,
                                     absolute=False):
         '''Read the next interval histogram from the log, if interval falls
         within an absolute or relative time range.
@@ -336,7 +338,7 @@ class HistogramLogReader(object):
     def add_next_interval_histogram(self,
                                     dest_histogram=None,
                                     range_start_time_sec=0.0,
-                                    range_end_time_sec=sys.maxint,
+                                    range_end_time_sec=sys.maxsize,
                                     absolute=False):
         '''Read the next interval histogram from the log, if interval falls
         within an absolute or relative time range, and add it to the destination
