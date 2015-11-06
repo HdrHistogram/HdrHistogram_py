@@ -19,6 +19,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
+from __future__ import division
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import math
 import sys
 from hdrh.iterators import AllValuesIterator
@@ -32,7 +36,7 @@ def get_bucket_count(value, subb_count, unit_mag):
     smallest_untrackable_value = subb_count << unit_mag
     buckets_needed = 1
     while smallest_untrackable_value <= value:
-        if smallest_untrackable_value > sys.maxint / 2:
+        if smallest_untrackable_value > old_div(sys.maxsize, 2):
             return buckets_needed + 1
         smallest_untrackable_value <<= 1
         buckets_needed += 1
@@ -96,22 +100,22 @@ class HdrHistogram(object):
         self.lowest_trackable_value = lowest_trackable_value
         self.highest_trackable_value = highest_trackable_value
         self.significant_figures = significant_figures
-        self.unit_magnitude = int(math.floor(math.log(lowest_trackable_value) /
-                                             math.log(2)))
+        self.unit_magnitude = int(math.floor(old_div(math.log(lowest_trackable_value),
+                                             math.log(2))))
         largest_value_single_unit_res = 2 * math.pow(10, significant_figures)
-        subb_count_mag = int(math.ceil(math.log(largest_value_single_unit_res) /
-                                       math.log(2)))
+        subb_count_mag = int(math.ceil(old_div(math.log(largest_value_single_unit_res),
+                                       math.log(2))))
         self.sub_bucket_half_count_magnitude = subb_count_mag - 1 if subb_count_mag > 1 else 0
         self.sub_bucket_count = int(math.pow(2, self.sub_bucket_half_count_magnitude + 1))
-        self.sub_bucket_half_count = self.sub_bucket_count / 2
+        self.sub_bucket_half_count = old_div(self.sub_bucket_count, 2)
         self.sub_bucket_mask = (self.sub_bucket_count - 1) << self.unit_magnitude
         self.bucket_count = get_bucket_count(highest_trackable_value,
                                              self.sub_bucket_count,
                                              self.unit_magnitude)
-        self.min_value = sys.maxint
+        self.min_value = sys.maxsize
         self.max_value = 0
         self.total_count = 0
-        self.counts_len = (self.bucket_count + 1) * (self.sub_bucket_count / 2)
+        self.counts_len = (self.bucket_count + 1) * (old_div(self.sub_bucket_count, 2))
         self.word_size = word_size
 
         if hdr_payload:
@@ -273,7 +277,7 @@ class HdrHistogram(object):
         '''
         count_at_percentile = self.get_target_count_at_percentile(percentile)
         total = 0
-        for index in xrange(self.counts_len):
+        for index in range(self.counts_len):
             total += self.get_count_at_index(index)
             if total >= count_at_percentile:
                 value_at_index = self.get_value_from_index(index)
@@ -299,7 +303,7 @@ class HdrHistogram(object):
         percentile_list = list(set(percentile_list))
         percentile_list.sort()
 
-        for index in xrange(self.counts_len):
+        for index in range(self.counts_len):
             total += self.get_count_at_index(index)
             while True:
                 # recalculate target based on next requested percentile
@@ -347,8 +351,8 @@ class HdrHistogram(object):
     def get_min_value(self):
         if 0 < self.counts[0] or self.total_count == 0:
             return 0
-        if sys.maxint == self.min_value:
-            return sys.maxint
+        if sys.maxsize == self.min_value:
+            return sys.maxsize
         return self.get_lowest_equivalent_value(self.min_value)
 
     def _hdr_size_of_equiv_value_range(self, value):
@@ -369,7 +373,7 @@ class HdrHistogram(object):
         itr = self.get_recorded_iterator()
         for item in itr:
             total += itr.count_at_this_value * self._hdr_median_equiv_value(item.value_iterated_to)
-        return float(total) / self.total_count
+        return old_div(float(total), self.total_count)
 
     def get_stddev(self):
         if not self.total_count:
@@ -379,15 +383,15 @@ class HdrHistogram(object):
         for item in self.get_recorded_iterator():
             dev = (self._hdr_median_equiv_value(item.value_iterated_to) * 1.0) - mean
             geometric_dev_total += (dev * dev) * item.count_added_in_this_iter_step
-        return math.sqrt(geometric_dev_total / self.total_count)
+        return math.sqrt(old_div(geometric_dev_total, self.total_count))
 
     def reset(self):
         '''Reset the histogram to a pristine state
         '''
-        for index in xrange(self.counts_len):
+        for index in range(self.counts_len):
             self.counts[index] = 0
         self.total_count = 0
-        self.min_value = sys.maxint
+        self.min_value = sys.maxsize
         self.max_value = 0
 
     def __iter__(self):
@@ -513,7 +517,7 @@ class HdrHistogram(object):
         else:
             # Arrays are not a direct match, so we can't just stream through and add them.
             # Instead, go through the array and add each non-zero value found at it's proper value:
-            for index in xrange(other_hist.counts_len):
+            for index in range(other_hist.counts_len):
                 other_count = other_hist.get_count_at_index(index)
                 if other_count > 0:
                     self.record_value(other_hist.get_value_from_index(index), other_count)
