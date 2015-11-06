@@ -1,5 +1,4 @@
 import sys
-
 from setuptools import setup
 from setuptools import Extension
 from setuptools.command.test import test
@@ -19,11 +18,13 @@ class Tox(test):
         import tox
         sys.exit(tox.cmdline())
 
+
 if __name__ == '__main__':
     setup(setup_requires=['pbr'], pbr=True,
+          install_requires=['future>=0.15.2'],
           keywords='hdrhistogram hdr histogram high dynamic range',
           tests_require=['tox'],
           cmdclass={'test': Tox},
-          ext_modules = [Extension('pyhdrh',
-                                   sources = ['src/python-codec.c'])]
-    )
+          ext_modules=[Extension('pyhdrh',
+                                 sources=['src/python-codec.c'])]
+          )
