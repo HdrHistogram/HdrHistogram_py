@@ -454,10 +454,10 @@ static PyObject *py_hdr_add_array(PyObject *self, PyObject *args) {
 #define ADD_ARRAY_DOCSTRING "Add a counts array to another"
 
 static PyMethodDef HdrhMethods[] = {
-        {"encode",  py_hdr_encode, METH_VARARGS, ENCODE_DOCSTRING},
-        {"decode",  py_hdr_decode, METH_VARARGS, DECODE_DOCSTRING},
-        {"add_array",  py_hdr_add_array, METH_VARARGS, ADD_ARRAY_DOCSTRING},
-        {NULL, NULL, 0, NULL}
+    {"encode",  py_hdr_encode, METH_VARARGS, ENCODE_DOCSTRING},
+    {"decode",  py_hdr_decode, METH_VARARGS, DECODE_DOCSTRING},
+    {"add_array",  py_hdr_add_array, METH_VARARGS, ADD_ARRAY_DOCSTRING},
+    {NULL, NULL, 0, NULL}
 };
 
 #if PY_MAJOR_VERSION >= 3
