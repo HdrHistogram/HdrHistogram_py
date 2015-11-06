@@ -23,7 +23,6 @@ limitations under the License.
 '''
 from __future__ import division
 from builtins import object
-from past.utils import old_div
 from abc import abstractmethod
 import math
 
@@ -54,7 +53,7 @@ class HdrIterationValue(object):
             hdr_it.total_count_to_current_index - hdr_it.total_count_to_prev_index
         self.total_count_to_this_value = hdr_it.total_count_to_current_index
         self.total_value_to_this_value = hdr_it.value_to_index
-        self.percentile = old_div((100.0 * hdr_it.total_count_to_current_index), hdr_it.total_count)
+        self.percentile = (100.0 * hdr_it.total_count_to_current_index) / hdr_it.total_count
         self.percentile_level_iterated_to = hdr_it.get_percentile_iterated_to()
         self.int_to_double_conversion_ratio = hdr_it.int_to_double_conversion_ratio
 
@@ -162,10 +161,10 @@ class AbstractHdrIterator(object):
         return self.histogram.get_highest_equivalent_value(self.value_at_index)
 
     def get_percentile_iterated_to(self):
-        return old_div((100.0 * self.total_count_to_current_index), self.total_count)
+        return (100.0 * self.total_count_to_current_index) / self.total_count
 
     def get_percentile_iterated_from(self):
-        return old_div((100.0 * self.total_count_to_prev_index), self.total_count)
+        return (100.0 * self.total_count_to_prev_index) / self.total_count
 
 class AllValuesIterator(AbstractHdrIterator):
     def __init__(self, histogram):
@@ -306,16 +305,14 @@ class PercentileIterator(AbstractHdrIterator):
         self.percentile_to_iterate_from = self.percentile_to_iterate_to
         percentile_gap = 100.0 - (self.percentile_to_iterate_to)
         if percentile_gap:
-            half_distance = math.pow(2,
-                                     (old_div(math.log(old_div(100, percentile_gap)),
-                                              math.log(2))) + 1)
+            half_distance = math.pow(2, (math.log(100 / percentile_gap) / math.log(2)) + 1)
             percentile_reporting_ticks = self.percentile_ticks_per_half_distance * half_distance
-            self.percentile_to_iterate_to += old_div(100.0, percentile_reporting_ticks)
+            self.percentile_to_iterate_to += 100.0 / percentile_reporting_ticks
 
     def reached_iteration_level(self):
         if self.count_at_this_value == 0:
             return False
-        current_percentile = old_div((100.0 * self.total_count_to_current_index), self.total_count)
+        current_percentile = (100.0 * self.total_count_to_current_index) / self.total_count
         return current_percentile >= self.percentile_to_iterate_to
 
     def get_percentile_iterated_to(self):

@@ -31,7 +31,6 @@ limitations under the License.
 '''
 from __future__ import division
 from builtins import object
-from past.utils import old_div
 import datetime
 import re
 import sys
@@ -82,14 +81,14 @@ class HistogramLogWriter(object):
         '''
         if not start_time_stamp_sec:
             start_time_stamp_sec = \
-                old_div((histogram.get_start_time_stamp() - self.base_time), 1000.0)
+                (histogram.get_start_time_stamp() - self.base_time) / 1000.0
         if not end_time_stamp_sec:
-            end_time_stamp_sec = old_div((histogram.get_end_time_stamp() - self.base_time), 1000.0)
+            end_time_stamp_sec = (histogram.get_end_time_stamp() - self.base_time) / 1000.0
         cpayload = histogram.encode()
         self.log.write("%f,%f,%f,%s\n" %
                        (start_time_stamp_sec,
                         end_time_stamp_sec - start_time_stamp_sec,
-                        old_div(histogram.get_max_value(), max_value_unit_ratio),
+                        histogram.get_max_value() // max_value_unit_ratio,
                         cpayload.decode('utf-8')))
 
     def output_start_time(self, start_time_msec):
@@ -98,7 +97,7 @@ class HistogramLogWriter(object):
             start_time_msec time (in milliseconds) since the absolute start time (the epoch)
         '''
         self.log.write("#[StartTime: %f (seconds since epoch), %s]\n" %
-                       (old_div(float(start_time_msec), 1000.0),
+                       (float(start_time_msec) / 1000.0,
                         datetime.fromtimestamp(start_time_msec).iso_format(' ')))
 
     def output_base_time(self, base_time_msec):
@@ -107,7 +106,7 @@ class HistogramLogWriter(object):
             base_time_msec time (in milliseconds) since the absolute start time (the epoch)
         '''
         self.log.write("#[BaseTime: %f (seconds since epoch)]\n" %
-                       (old_div(float(base_time_msec), 1000.0)))
+                       (float(base_time_msec) / 1000.0))
 
     def output_comment(self, comment):
         '''Log a comment to the log.

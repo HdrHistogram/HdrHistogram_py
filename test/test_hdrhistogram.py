@@ -21,9 +21,7 @@ limitations under the License.
 '''
 from __future__ import division
 from __future__ import print_function
-from __future__ import unicode_literals
 from builtins import range
-from past.utils import old_div
 import cProfile
 import datetime
 import pytest
@@ -321,7 +319,7 @@ def test_mean_stddev():
     assert(histogram.get_stddev() == 1000.5)
 
 HDR_PAYLOAD_COUNTS = 1000
-HDR_PAYLOAD_PARTIAL_COUNTS = old_div(HDR_PAYLOAD_COUNTS, 2)
+HDR_PAYLOAD_PARTIAL_COUNTS = HDR_PAYLOAD_COUNTS // 2
 
 def fill_counts(payload, last_index, start=0):
     # note that this function should only be used for
@@ -398,8 +396,8 @@ def check_hist_encode(word_size,
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, digits,
                              word_size=word_size)
     if fill_count_percent:
-        fill_start_index = old_div((fill_start_percent * histogram.counts_len), 100)
-        fill_to_index = fill_start_index + old_div((fill_count_percent * histogram.counts_len), 100)
+        fill_start_index = (fill_start_percent * histogram.counts_len) // 100
+        fill_to_index = fill_start_index + (fill_count_percent * histogram.counts_len) // 100
         fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
     assert(len(b64) == expected_compressed_length)
@@ -493,8 +491,8 @@ def test_hdr_interop():
 
 def check_cod_perf():
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, 2)
-    fill_start_index = old_div((20 * histogram.counts_len), 100)
-    fill_to_index = fill_start_index + old_div((30 * histogram.counts_len), 100)
+    fill_start_index = (20 * histogram.counts_len) // 100
+    fill_to_index = fill_start_index + (30 * histogram.counts_len) // 100
     fill_hist_counts(histogram, fill_to_index, fill_start_index)
 
     # encode 1000 times
@@ -506,8 +504,8 @@ def check_cod_perf():
 
 def check_dec_perf():
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, 2)
-    fill_start_index = old_div((20 * histogram.counts_len), 100)
-    fill_to_index = fill_start_index + old_div((30 * histogram.counts_len), 100)
+    fill_start_index = (20 * histogram.counts_len) // 100
+    fill_to_index = fill_start_index + (30 * histogram.counts_len) // 100
     fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
 
