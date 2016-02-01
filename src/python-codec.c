@@ -163,7 +163,7 @@ static int set_array_entry32(void *src, int index, uint64_t value) {
     if (value > 0xFFFFFFFF) {
         return -1;
     }
-    array[index] = value;
+    array[index] = (uint32_t) value;
     return 0;
 }
 
@@ -266,8 +266,8 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
 
     set_array_entry set_entry;
     uint64_t total_count = 0;
-    int min_nonzero_index = -1;
-    int max_nonzero_index = 0;
+    int64_t min_nonzero_index = -1;
+    int64_t max_nonzero_index = 0;
 
     if (!PyArg_ParseTuple(args, "s#ilii", &src, &src_len,
                           &read_index,

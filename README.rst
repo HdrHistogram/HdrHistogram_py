@@ -21,6 +21,7 @@ library:
 - All iterators are implemented: all values, recorded, percentile, linear, logarithmic
 - Text file histogram log writer and log reader
 - Histogram encoding and decoding (HdrHistogram V2 format only, V1 and V0 not supported)
+- supports python 2.7 and python 3
 
 Histogram V2 format encoding inter-operability with Java and C versions verified through unit test code.
 
@@ -111,7 +112,7 @@ Installation
 ------------
 Pre-requisites:
 
-Make sure you have python 2.7 and pip installed
+Make sure you have python 2.7 or 3, and pip installed
 
 Binary installation
 ^^^^^^^^^^^^^^^^^^^
