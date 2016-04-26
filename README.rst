@@ -440,11 +440,7 @@ limitations under the License.
 
 Contribution
 ------------
-External contribution and forks are welcome.
-
-Changes can be contributed back using preferably GerritHub (https://review.gerrithub.io/#/q/project:HdrHistogram/HdrHistogram_py)
-
-GitHub pull requests can also be considered.
+External contribution, forks and GitHub pull requests are welcome.
 
 
 Acknowledgements

@@ -24,6 +24,7 @@ from __future__ import print_function
 from builtins import range
 import cProfile
 import datetime
+import os
 import pytest
 import zlib
 
@@ -600,6 +601,11 @@ def test_jHiccup_v2_log():
             assert(eval(statement) == target_numbers[statement])
 
         log_reader.close()
+
+@pytest.mark.log
+def test_output_percentile_distribution():
+    histogram = load_histogram()
+    histogram.output_percentile_distribution(open(os.devnull, 'wb'), 1000)
 
 ARRAY_SIZE = 10
 
