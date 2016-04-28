@@ -77,8 +77,8 @@ Recorded values can be iterated over using the recorded iterator:
 
     for item in histogram.get_recorded_iterator():
         print('value=%f count=%d percentile=%f' %
-                item.count_added_in_this_iter_step,
                 item.value_iterated_to,
+                item.count_added_in_this_iter_step,
                 item.percentile)
 
 
