@@ -27,6 +27,7 @@ import datetime
 import os
 import pytest
 import zlib
+import sys
 
 from ctypes import addressof
 from ctypes import c_uint8
@@ -282,6 +283,8 @@ def test_reset():
     histogram.reset()
     assert(histogram.get_total_count() == 0)
     assert(histogram.get_value_at_percentile(99.99) == 0)
+    assert(histogram.get_start_time_stamp() == sys.maxsize)
+    assert(histogram.get_end_time_stamp() == 0)
 
 @pytest.mark.basic
 def test_invalid_significant_figures():
