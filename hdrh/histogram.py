@@ -390,6 +390,8 @@ class HdrHistogram(object):
         self.total_count = 0
         self.min_value = sys.maxsize
         self.max_value = 0
+        self.start_time_stamp_msec = sys.maxsize
+        self.end_time_stamp_msec = 0
 
     def __iter__(self):
         '''Returns the recorded iterator if iter(self) is called
