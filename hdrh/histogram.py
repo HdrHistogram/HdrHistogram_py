@@ -577,8 +577,8 @@ class HdrHistogram(object):
                                        out_file,
                                        output_value_unit_scaling_ratio,
                                        ticks_per_half_distance=5):
-        out_file.write('%12s %14s %10s %14s\n\n' %
-                       ('Value', 'Percentile', 'TotalCount', '1/(1-Percentile)'))
+        out_file.write(b'%12s %14s %10s %14s\n\n' %
+                       (b'Value', b'Percentile', b'TotalCount', b'1/(1-Percentile)'))
 
         percentile_format = '%12.{}f %2.12f %10d %14.2f\n'.format(self.significant_figures)
         last_line_percentile_format = '%12.{}f %2.12f %10d\n'.format(self.significant_figures)
@@ -588,18 +588,21 @@ class HdrHistogram(object):
             total_count = iter_value.total_count_to_this_value
             if iter_value.percentile_level_iterated_to != 100:
                 other = 1 / (1 - iter_value.percentile_level_iterated_to / 100)
-                out_file.write(percentile_format % (value, percentile, total_count, other))
+                out_file.write(percentile_format.encode() % (value, percentile,
+                                                             total_count, other))
             else:
-                out_file.write(last_line_percentile_format % (value, percentile, total_count))
+                out_file.write(last_line_percentile_format.encode() % (value,
+                                                                       percentile,
+                                                                       total_count))
 
         mean = self.get_mean_value() / output_value_unit_scaling_ratio
         stddev = self.get_stddev()
-        out_file.write('#[Mean    = %12.{0}f, StdDeviation   = %12.{0}f]\n'.format(
-            self.significant_figures) % (mean, stddev))
+        out_file.write('#[Mean    = %12.{0}f, StdDeviation   = %12.{0}f]\n'.
+                       format(self.significant_figures).encode() % (mean, stddev))
 
         max = self.get_max_value() / output_value_unit_scaling_ratio
         total = self.get_total_count()
         out_file.write('#[Max     = %12.{0}f, TotalCount     = %12.{0}f]\n'.format(
-            self.significant_figures) % (max, total))
-        out_file.write('#[Buckets = %12d, SubBuckets     = %12d]\n' % (
+            self.significant_figures).encode() % (max, total))
+        out_file.write(b'#[Buckets = %12d, SubBuckets     = %12d]\n' % (
             self.bucket_count, self.sub_bucket_count))
