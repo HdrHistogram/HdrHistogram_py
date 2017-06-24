@@ -138,30 +138,47 @@ Install the unit test automation harness tox and hdrhistogram from github:
     git clone https://github.com/HdrHistogram/HdrHistogram_py.git
     cd hdrhistogram
 
-Running tox will execute 2 targets:
+Running tox will execute the following targets:
 
 - pep8/flake8 for syntax and indentation checking
-- the python unit test code
+- python unit test code (python 2.7 and 3)
+- pylint
 
 Just run tox without any argument (the first run will take more time as tox will setup the execution environment and download the necessary packages):
 
 .. code::
 
     $ tox
-    GLOB sdist-make: /openstack/pyhdr/hdrhistogram/setup.py
-    py27 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.2.3.dev1.zip
-    py27 installed: flake8==2.4.1,hdrhistogram==0.2.3.dev1,mccabe==0.3.1,numpy==1.9.2,pbr==1.7.0,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.7.2,wsgiref==0.1.2
-    py27 runtests: PYTHONHASHSEED='325439186'
-    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/hdrhistogram/.tox/py27/tmp
-    .......................ss........
-    31 passed, 2 skipped in 6.11 seconds
-    pep8 inst-nodeps: /openstack/pyhdr/hdrhistogram/.tox/dist/hdrhistogram-0.2.3.dev1.zip
-    pep8 installed: flake8==2.4.1,hdrhistogram==0.2.3.dev1,mccabe==0.3.1,numpy==1.9.3,pbr==1.8.0,pep8==1.5.7,py==1.4.30,pyflakes==0.8.1,pytest==2.8.0,wsgiref==0.1.2
-    pep8 runtests: PYTHONHASHSEED='325439186'
+    GLOB sdist-make: /openstack/pyhdr/HdrHistogram_py/setup.py
+    py27 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
+    py27 installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,future==0.16.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
+    py27 runtests: PYTHONHASHSEED='4015036329'
+    py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/HdrHistogram_py/.tox/py27/tmp
+    ......................ss.........
+    31 passed, 2 skipped in 5.14 seconds
+    py3 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
+    py3 installed: You are using pip version 8.1.1, however version 9.0.1 is available.,You should consider upgrading via the 'pip install --upgrade pip' command.,flake8==2.5.4,future==0.15.2,hdrhistogram==0.5.2,mccabe==0.4.0,pbr==1.9.1,pep8==1.7.0,py==1.4.31,pyflakes==1.0.0,pytest==2.9.1
+    py3 runtests: PYTHONHASHSEED='4015036329'
+    py3 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/HdrHistogram_py/.tox/py3/tmp
+    s......................ss.........
+    31 passed, 3 skipped in 5.11 seconds
+    pep8 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
+    pep8 installed: You are using pip version 8.1.1, however version 9.0.1 is available.,You should consider upgrading via the 'pip install --upgrade pip' command.,flake8==2.5.4,future==0.15.2,hdrhistogram==0.5.2,mccabe==0.4.0,pbr==1.9.1,pep8==1.7.0,py==1.4.31,pyflakes==1.0.0,pytest==2.9.1
+    pep8 runtests: PYTHONHASHSEED='4015036329'
     pep8 runtests: commands[0] | flake8 hdrh test
-    ______________________________________________________________________________________________ summary ______________________________________________________________________________________________
+    lint inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
+    lint installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,future==0.16.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
+    lint runtests: PYTHONHASHSEED='4015036329'
+    lint runtests: commands[0] | pylint --rcfile pylint.rc hdrh test
+
+    --------------------------------------------------------------------
+    Your code has been rated at 10.00/10 (previous run: 10.00/10, +0.00)
+
+    ________________________________________________________________ summary ________________________________________________________________
       py27: commands succeeded
+      py3: commands succeeded
       pep8: commands succeeded
+      lint: commands succeeded
       congratulations :)
 
 Aggregation of Distributed Histograms
