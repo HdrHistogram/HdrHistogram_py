@@ -132,13 +132,13 @@ class HistogramLogWriter(object):
         self.log.close()
 
 # "#[StartTime: %f (seconds since epoch), %s]\n"
-re_start_time = re.compile('#\[StartTime: *([\d\.]*) ')
+re_start_time = re.compile(r'#\[StartTime: *([\d\.]*) ')
 
 # "#[BaseTime: %f (seconds since epoch)]\n"
-re_base_time = re.compile('#\[BaseTime: *([\d\.]*) ')
+re_base_time = re.compile(r'#\[BaseTime: *([\d\.]*) ')
 
 # "%f,%f,%f,%s\n"
-re_histogram_interval = re.compile('([\d\.]*),([\d\.]*),([\d\.]*),(.*)')
+re_histogram_interval = re.compile(r'([\d\.]*),([\d\.]*),([\d\.]*),(.*)')
 
 class HistogramLogReader(object):
 
@@ -226,7 +226,7 @@ class HistogramLogReader(object):
                     continue
                 match_res = re_base_time.match(line)
                 if match_res:
-                    self.base_time = float(match_res.group(1))
+                    self.base_time_sec = float(match_res.group(1))
                     self.observed_base_time = True
                     continue
 

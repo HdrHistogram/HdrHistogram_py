@@ -225,6 +225,10 @@ class AbstractLiLoIteratortype(AbstractHdrIterator):
     def get_value_iterated_to(self):
         return self.next_value_report_lev
 
+    @abstractmethod
+    def increment_iteration_level(self):
+        pass
+
 class LinearIterator(AbstractLiLoIteratortype):
     '''Provide a means of iterating through histogram values using linear steps.
 

@@ -36,10 +36,11 @@ from ctypes import c_ushort
 from ctypes import c_uint
 from ctypes import c_ulonglong
 
+import zlib
+
 from pyhdrh import add_array
 from pyhdrh import decode
 from pyhdrh import encode
-import zlib
 
 V2_ENCODING_COOKIE_BASE = 0x1c849303
 V2_COMPRESSION_COOKIE_BASE = 0x1c849304
@@ -153,7 +154,7 @@ class HdrPayload(object):
         Params:
             counts_len counts size to use based on decoded settings in the header
         '''
-        assert(self._data and counts_len and self.counts_len == 0)
+        assert self._data and counts_len and self.counts_len == 0
         self.counts_len = counts_len
         self._init_counts()
 
@@ -383,6 +384,6 @@ def dump_payload(counts, max_index):
     _dump_series(series_start_index, index, counts[index])
     print('[%06d] --END-- total count=%d' % (index + 1, total_count))
 
-def hex_dump(label, str):
+def hex_dump(label, hstr):
     print(label)
-    print(':'.join(x.encode('hex') for x in str))
+    print(':'.join(x.encode('hex') for x in hstr))

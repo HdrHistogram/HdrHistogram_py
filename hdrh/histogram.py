@@ -341,12 +341,12 @@ class HdrHistogram(object):
         return self.get_lowest_equivalent_value(val1) == self.get_lowest_equivalent_value(val2)
 
     def get_max_value(self):
-        if 0 == self.max_value:
+        if self.max_value == 0:
             return 0
         return self.get_highest_equivalent_value(self.max_value)
 
     def get_min_value(self):
-        if 0 < self.counts[0] or self.total_count == 0:
+        if self.counts[0] > 0 or self.total_count == 0:
             return 0
         if sys.maxsize == self.min_value:
             return sys.maxsize
