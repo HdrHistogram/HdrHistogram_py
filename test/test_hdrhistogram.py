@@ -799,3 +799,19 @@ def test_zz_decode():
 def hex_dump(label, str):
     print(label)
     print(':'.join(x.encode('hex') for x in str))
+
+@pytest.mark.basic
+def test_get_value_at_percentile():
+    histogram = HdrHistogram(LOWEST, 3600000000L, 3)
+    histogram.record_value(1)
+    histogram.record_value(2)
+    assert histogram.get_value_at_percentile(50.0) == 1
+    assert histogram.get_value_at_percentile(50.00000000000001) == 1
+    # assert histogram.get_value_at_percentile(50.0000000000001) == 2
+    histogram.record_value(2)
+    histogram.record_value(2)
+    histogram.record_value(2)
+    # val = histogram.get_value_at_percentile(25)
+    # assert histogram.get_value_at_percentile(25) == 2
+    assert histogram.get_value_at_percentile(30) == 2
+
