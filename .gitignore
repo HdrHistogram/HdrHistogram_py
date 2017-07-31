@@ -60,3 +60,6 @@ ChangeLog
 
 *.local*
 *.json
+
+# System Files/Folders
+.DS_Store
