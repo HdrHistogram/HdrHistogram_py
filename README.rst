@@ -435,6 +435,11 @@ Examples of notable features/APIs not implemented:
 - histogram auto-resize
 - recorder function
 
+This implementation has byte endianess encoding issues when used with PyPy
+due to a limitation of the PyPy code
+(see https://github.com/HdrHistogram/HdrHistogram_py/issues/13).
+
+
 Dependencies
 ------------
 The only dependency (outside of using pytest and tox for the unit testing) is the
