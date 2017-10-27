@@ -101,6 +101,12 @@ In the case of aggregation, the decode_and_add method can be used:
 
      aggregation_histogram.decode_and_add(encoded_histogram)
 
+If you want to print the histogram in the standard tabular format:
+
+.. code::
+
+    histogram.output_percentile_distribution(file, scaling_ratio)
+    
 For additional help on how to use the API:
 
 - browse through the python code and check the API documentation in the comment section for each method (where available)
