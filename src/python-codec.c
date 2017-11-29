@@ -20,23 +20,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 #include "python-codec.h"
-#include <stdint.h>
 #include <stdlib.h>
 #include <limits.h>
+
+#ifdef _MSC_VER
+typedef __int8 int8_t;
+typedef unsigned __int8 uint8_t;
+typedef __int16 int16_t;
+typedef unsigned __int16 uint16_t;
+typedef __int32 int32_t;
+typedef unsigned __int32 uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+#else
+#include <stdint.h>
+#endif
 
 /* max number of bytes to encode a 64-bit value in LEB128 based on the word size */
 #define MAX_BYTES_LEB128(word_size) (word_size + 1)
 
-static int zig_zag_encode_i64(uint8_t* buffer, int64_t signed_value) {
+static int32_t zig_zag_encode_i64(uint8_t* buffer, int64_t signed_value) {
+    int32_t bytesWritten = 0;
     int64_t value = signed_value;
 
     value = (value << 1) ^ (value >> 63);
-    int bytesWritten = 0;
     if (value >> 7 == 0) {
         buffer[0] = (uint8_t) value;
         bytesWritten = 1;
-    }
-    else {
+    } else {
         buffer[0] = (uint8_t) ((value & 0x7F) | 0x80);
         if (value >> 14 == 0) {
             buffer[1] = (uint8_t) (value >> 7);
