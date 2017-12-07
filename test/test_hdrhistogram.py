@@ -25,6 +25,7 @@ from builtins import range
 import cProfile
 import datetime
 import os
+import struct
 import zlib
 import sys
 
@@ -47,6 +48,10 @@ from pyhdrh import decode
 
 import pytest
 
+def python_bitness():
+    "cross-platform way of calculating bitness, returns either 32 or 64"
+    return struct.calcsize("P") * 8
+
 # histogram __init__ values
 LOWEST = 1
 HIGHEST = 3600 * 1000 * 1000
@@ -54,12 +59,16 @@ SIGNIFICANT = 3
 TEST_VALUE_LEVEL = 4
 INTERVAL = 10000
 
+
 @pytest.mark.basic
 def test_basic():
+    BITNESS = python_bitness()
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
-    assert histogram.bucket_count == 22
+    expected_bucket_count = 22 if BITNESS == 64 else 21
+    expected_counts_len = 23552 if BITNESS == 64 else 22528
+    assert histogram.bucket_count == expected_bucket_count
     assert histogram.sub_bucket_count == 2048
-    assert histogram.counts_len == 23552
+    assert histogram.counts_len == expected_counts_len
     assert histogram.unit_magnitude == 0
     assert histogram.sub_bucket_half_count_magnitude == 10
 
