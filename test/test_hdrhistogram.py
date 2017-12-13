@@ -811,7 +811,7 @@ def hex_dump(label, str):
 
 @pytest.mark.basic
 def test_get_value_at_percentile():
-    histogram = HdrHistogram(LOWEST, 3600000000L, 3)
+    histogram = HdrHistogram(LOWEST, 3600000000, 3)
     histogram.record_value(1)
     histogram.record_value(2)
     assert histogram.get_value_at_percentile(50.0) == 1
