@@ -6,6 +6,8 @@ python:
 install:
 - pip install -r requirements.txt
 - pip install -r test-requirements.txt
+- python setup.py build
+- pytnon setup.py install
 
 # command to run tests
 script:
