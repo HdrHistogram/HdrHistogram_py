@@ -35,7 +35,7 @@ class HdrIterationValue(object):
     def __init__(self, hdr_iterator):
         self.hdr_iterator = hdr_iterator
         self.value_iterated_to = 0
-        self.value_iterated_from = 0,
+        self.value_iterated_from = 0
         self.count_at_value_iterated_to = 0
         self.count_added_in_this_iter_step = 0
         self.total_count_to_this_value = 0
