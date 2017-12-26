@@ -58,11 +58,10 @@ HIGHEST = 3600 * 1000 * 1000
 SIGNIFICANT = 3
 TEST_VALUE_LEVEL = 4
 INTERVAL = 10000
-
+BITNESS = python_bitness()
 
 @pytest.mark.basic
 def test_basic():
-    BITNESS = python_bitness()
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     expected_bucket_count = 22 if BITNESS == 64 else 21
     expected_counts_len = 23552 if BITNESS == 64 else 22528
@@ -811,7 +810,7 @@ def hex_dump(label, str):
 
 @pytest.mark.basic
 def test_get_value_at_percentile():
-    histogram = HdrHistogram(LOWEST, 3600000000L, 3)
+    histogram = HdrHistogram(LOWEST, 3600000000, 3)
     histogram.record_value(1)
     histogram.record_value(2)
     assert histogram.get_value_at_percentile(50.0) == 1
@@ -823,4 +822,3 @@ def test_get_value_at_percentile():
     # val = histogram.get_value_at_percentile(25)
     # assert histogram.get_value_at_percentile(25) == 2
     assert histogram.get_value_at_percentile(30) == 2
-
