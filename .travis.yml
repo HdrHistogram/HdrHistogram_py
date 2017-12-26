@@ -11,6 +11,6 @@ install:
 
 # command to run tests
 script:
-  - flake8 hdrh test
-  - pylint
+  - flake8 --ignore=E305,E302 hdrh test
+  - pylint --rcfile pylint.rc hdrh test
   - py.test -s
