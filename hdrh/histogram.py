@@ -190,6 +190,7 @@ class HdrHistogram(object):
         self.max_value = max(self.max_value, value)
         return True
 
+    #pylint: disable=inconsistent-return-statements
     def record_corrected_value(self, value, expected_interval, count=1):
         '''Record a new value into the histogram and correct for
         coordinated omission if needed

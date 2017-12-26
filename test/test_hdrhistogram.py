@@ -37,16 +37,17 @@ from ctypes import c_uint64
 from ctypes import sizeof
 from ctypes import string_at
 
-from hdrh.codec import HdrPayload
-from hdrh.codec import HdrCookieException
-from hdrh.histogram import HdrHistogram
-from hdrh.log import HistogramLogWriter
-from hdrh.log import HistogramLogReader
+import pytest
+
 from pyhdrh import add_array
 from pyhdrh import encode
 from pyhdrh import decode
 
-import pytest
+from hdrh.histogram import HdrHistogram
+from hdrh.log import HistogramLogWriter
+from hdrh.log import HistogramLogReader
+from hdrh.codec import HdrPayload
+from hdrh.codec import HdrCookieException
 
 def python_bitness():
     "cross-platform way of calculating bitness, returns either 32 or 64"
