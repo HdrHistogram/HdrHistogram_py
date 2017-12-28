@@ -7,6 +7,10 @@ High Dynamic Range Histogram python implementation
 .. image:: https://badges.gitter.im/Join Chat.svg
    :target: https://gitter.im/HdrHistogram/HdrHistogram
 
+.. image:: https://travis-ci.org/HdrHistogram/HdrHistogram_py.svg?branch=master
+   :target: https://travis-ci.org/HdrHistogram/HdrHistogram_py
+
+
 This repository contains a port to python of most of the original Java HDR Histogram
 library:
 
