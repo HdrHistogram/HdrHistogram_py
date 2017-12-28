@@ -1,16 +1,22 @@
 language: python
 python:
-  - "2.7"
-  - "3.6"
-
+- '2.7'
+- '3.6'
 install:
-  - pip install -r requirements.txt
-  - pip install -r test-requirements.txt
-  - python setup.py build
-  - python setup.py install
-
-# command to run tests
+- pip install -r requirements.txt
+- pip install -r test-requirements.txt
+- python setup.py build
+- python setup.py install
 script:
-  - flake8 --ignore=E305,E302 hdrh test
-  - pylint --rcfile pylint.rc hdrh test
-  - py.test -s
+- flake8 --ignore=E305,E302 hdrh test
+- pylint --rcfile pylint.rc hdrh test
+- py.test -s
+deploy:
+  provider: pypi
+  user: ahothan
+  password:
+    secure: nowXZvVW6JveJn2uCoWGwqxWTKAzEzKghf/YCAz1aTLs1wTBEdgqbkDbZKEiJ5u7Da5Al6Joh8WJ040CkFqbEz34YhxQpxbxYsaUBBkeqFG6+DVsCa3bii8rQkBS8W1onwy4RFxqV/M8tovkFXgyYmsQeiH3H4HxlJ57xYGNfr3KxhjoXzV8Gb895XeZG2N36vTbyoXWJZovx64okk5aankPCBk3qrVAeDG4PTCiM7cQcUxtUoWAhly8Eu5WZpcB3dH5mZi6m8pZApSd0tMkjCdWRwrw+ltCCO7m5wY+abM/06xxSwBew7GN3GRHGRqeEFYIYmHHg/Ixkc7zaADnf0i7eEe+/8zZ4YvWiF82SS848yvyK2J2Zb640SCtCwaFcjdPL0MPiQrbI+joOiqk5Fpb9bfJUY7yrC6iizRGD8MXDbHxdDVuvp9qFKpDWW1fMiFjWormmpKm5aMWoSc3YoMb/5xmkTB7+Z3Ka8NiJ1SBOoDHRlaBTqyOHIbfKSI90NRlAzvJyAGP8h7FdJY42wPAYxSbkdNX1TXioB1D/VHeffeWCzipfPmIgIyRqZL5acg+OLYMYQXhOnFm1ZW310N4I5gB3jV04y1vxtJW7qGY0bnCojUUlYD8z67RpV900u6l8oETypULF7Kqv0Y2hvvMHRNzTEgkjVvyVCV1yIk=
+  on:
+    tags: true
+    distributions: sdist bdist_wheel
+    repo: HdrHistogram/HdrHistogram_py
