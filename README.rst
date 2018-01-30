@@ -434,8 +434,8 @@ shows 0.313 seconds for 172032 calls):
         6    0.122    0.020    1.376    0.229 test_hdrhistogram.py:605(fill_hist_counts)
        12    0.193    0.016    0.351    0.029 test_hdrhistogram.py:612(check_hist_counts)
       
-Limitations and Caveats
------------------------
+Limitations, Caveats and Known Issues
+-------------------------------------
 
 The latest features and bug fixes of the original HDR histogram library may not be available in this python port.
 Examples of notable features/APIs not implemented:
@@ -449,6 +449,7 @@ This implementation has byte endianess encoding issues when used with PyPy
 due to a limitation of the PyPy code
 (see https://github.com/HdrHistogram/HdrHistogram_py/issues/13).
 
+The current implementation has issues running on Windows 32-bit systems (library crashing during decode).
 
 Dependencies
 ------------
