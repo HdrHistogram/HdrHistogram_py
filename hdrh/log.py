@@ -131,6 +131,7 @@ class HistogramLogWriter(object):
     def close(self):
         self.log.close()
 
+
 # "#[StartTime: %f (seconds since epoch), %s]\n"
 re_start_time = re.compile(r'#\[StartTime: *([\d\.]*) ')
 

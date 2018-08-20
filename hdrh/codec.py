@@ -84,6 +84,8 @@ class ExternalHeader(BigEndianStructure):
     _fields_ = [
         ("cookie", c_uint),
         ("length", c_uint)]
+
+
 ext_header_size = ctypes.sizeof(ExternalHeader)
 
 # Header for the zlib compressed part
@@ -97,6 +99,8 @@ class PayloadHeader(BigEndianStructure):
         ("lowest_trackable_value", c_ulonglong),
         ("highest_trackable_value", c_ulonglong),
         ("conversion_ratio_bits", c_ulonglong)]
+
+
 payload_header_size = ctypes.sizeof(PayloadHeader)
 
 # list of supported payload counter ctypes, indexed by the word size
