@@ -22,14 +22,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 from __future__ import division
-from builtins import object
+# from builtins import object
 from abc import abstractmethod
 import math
 
 class HdrConcurrentModificationException(Exception):
     pass
 
-class HdrIterationValue(object):
+class HdrIterationValue():
     '''Class of the values returned by each iterator
     '''
     def __init__(self, hdr_iterator):
@@ -57,7 +57,7 @@ class HdrIterationValue(object):
         self.percentile_level_iterated_to = hdr_it.get_percentile_iterated_to()
         self.int_to_double_conversion_ratio = hdr_it.int_to_double_conversion_ratio
 
-class AbstractHdrIterator(object):
+class AbstractHdrIterator():
     '''Provide a means of iterating through all histogram values using the finest
     granularity steps supported by the underlying representation.
     The iteration steps through all possible unit value levels, regardless of

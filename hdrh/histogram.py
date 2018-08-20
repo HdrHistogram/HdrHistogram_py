@@ -21,7 +21,7 @@ limitations under the License.
 '''
 from __future__ import division, print_function
 from builtins import range
-from builtins import object
+# from builtins import object
 import math
 import sys
 from hdrh.iterators import AllValuesIterator
@@ -41,7 +41,7 @@ def get_bucket_count(value, subb_count, unit_mag):
         buckets_needed += 1
     return buckets_needed
 
-class HdrHistogram(object):
+class HdrHistogram():
     '''This class supports the recording and analyzing of sampled data value
     counts across a configurable integer value range with configurable value
     precision within the range. Value precision is expressed as the number of

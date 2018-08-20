@@ -30,13 +30,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 from __future__ import division
-from builtins import object
+# from builtins import object
 import datetime
 import re
 import sys
 from hdrh.histogram import HdrHistogram
 
-class HistogramLogWriter(object):
+class HistogramLogWriter():
 
     HISTOGRAM_LOG_FORMAT_VERSION = "1.2"
 
@@ -141,7 +141,7 @@ re_base_time = re.compile(r'#\[BaseTime: *([\d\.]*) ')
 # "%f,%f,%f,%s\n"
 re_histogram_interval = re.compile(r'([\d\.]*),([\d\.]*),([\d\.]*),(.*)')
 
-class HistogramLogReader(object):
+class HistogramLogReader():
 
     def __init__(self, input_file_name, reference_histogram):
         '''Constructs a new HistogramLogReader that produces intervals read
