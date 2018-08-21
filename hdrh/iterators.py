@@ -142,6 +142,43 @@ class AbstractHdrIterator():
 
         raise StopIteration()
 
+    def __next__(self):
+        if self.total_count != self.histogram.total_count:
+            raise HdrConcurrentModificationException()
+        while self.has_next():
+            self.count_at_this_value = self.histogram.get_count_at_index(self.current_index)
+            if self.fresh_sub_bucket:
+                self.total_count_to_current_index += self.count_at_this_value
+                self.value_to_index += self.count_at_this_value * self.get_value_iterated_to()
+                self.fresh_sub_bucket = False
+            if self.reached_iteration_level():
+                value_iterated_to = self.get_value_iterated_to()
+                self.current_iteration_value.set(value_iterated_to)
+
+                self.prev_value_iterated_to = value_iterated_to
+                self.total_count_to_prev_index = self.total_count_to_current_index
+
+                self.increment_iteration_level()
+
+                if self.total_count != self.histogram.total_count:
+                    raise HdrConcurrentModificationException()
+
+                return self.current_iteration_value
+
+            # get to the next sub bucket
+            self.increment_sub_bucket()
+
+        if self.total_count_to_current_index > self.total_count_to_prev_index:
+            # We are at the end of the iteration but we still need to report
+            # the last iteration value
+            value_iterated_to = self.get_value_iterated_to()
+            self.current_iteration_value.set(value_iterated_to)
+            # we do this one time only
+            self.total_count_to_prev_index = self.total_count_to_current_index
+            return self.current_iteration_value
+
+        raise StopIteration()
+
     @abstractmethod
     def reached_iteration_level(self):
         pass
