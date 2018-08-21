@@ -25,7 +25,7 @@ limitations under the License.
 from __future__ import print_function
 from builtins import str
 from builtins import range
-from builtins import object
+# from builtins import object
 
 import base64
 import ctypes
@@ -84,6 +84,8 @@ class ExternalHeader(BigEndianStructure):
     _fields_ = [
         ("cookie", c_uint),
         ("length", c_uint)]
+
+
 ext_header_size = ctypes.sizeof(ExternalHeader)
 
 # Header for the zlib compressed part
@@ -97,6 +99,8 @@ class PayloadHeader(BigEndianStructure):
         ("lowest_trackable_value", c_ulonglong),
         ("highest_trackable_value", c_ulonglong),
         ("conversion_ratio_bits", c_ulonglong)]
+
+
 payload_header_size = ctypes.sizeof(PayloadHeader)
 
 # list of supported payload counter ctypes, indexed by the word size
@@ -107,7 +111,7 @@ payload_counter_ctype = [None, None,
                          None, None, None,
                          c_ulonglong]   # index 8
 
-class HdrPayload(object):
+class HdrPayload():
     '''A class that wraps the ctypes big endian struct that will hold the
     histogram wire format content (including the counters).
     '''
@@ -245,7 +249,7 @@ class HdrPayload(object):
         dump_payload(self.get_counts(), self.counts_len)
 
 
-class HdrHistogramEncoder(object):
+class HdrHistogramEncoder():
     '''An encoder class for histograms, only supports V1 encoding.
     '''
     def __init__(self, histogram, b64_wrap=True, hdr_payload=None):

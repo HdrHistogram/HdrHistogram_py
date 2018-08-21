@@ -53,6 +53,7 @@ def python_bitness():
     "cross-platform way of calculating bitness, returns either 32 or 64"
     return struct.calcsize("P") * 8
 
+
 # histogram __init__ values
 LOWEST = 1
 HIGHEST = 3600 * 1000 * 1000
@@ -315,6 +316,7 @@ def test_out_of_range_values():
     assert histogram.record_value(32767)
     assert histogram.record_value(32768) is False
 
+
 # Make up a list of values for testing purpose
 VALUES_LIST = (
     1000,
@@ -331,6 +333,7 @@ def test_mean_stddev():
         histogram.record_value(value)
     assert histogram.get_mean_value() == 2000.5
     assert histogram.get_stddev() == 1000.5
+
 
 HDR_PAYLOAD_COUNTS = 1000
 HDR_PAYLOAD_PARTIAL_COUNTS = HDR_PAYLOAD_COUNTS // 2
@@ -399,6 +402,7 @@ def check_hist_counts(histogram, last_index, multiplier=1, start=0):
     for index in range(start, last_index):
         assert histogram.get_count_at_index(index) == multiplier * index
 
+
 # This is the max latency used by wrk2
 WRK2_MAX_LATENCY = 24 * 60 * 60 * 1000000
 
@@ -415,6 +419,7 @@ def check_hist_encode(word_size,
         fill_hist_counts(histogram, fill_to_index, fill_start_index)
     b64 = histogram.encode()
     assert len(b64) == expected_compressed_length
+
 
 # A list of call arguments to check_hdr_encode
 ENCODE_ARG_LIST = (
@@ -481,6 +486,7 @@ def test_hist_codec_partial():
 # encoded from the standard Hdr test histograms (load_histogram())
 # These are all histograms with 64-bit counters
 
+
 ENCODE_SAMPLES_HDRHISTOGRAM_C = [
     # standard Hdr test histogram
     'HISTFAAAACl4nJNpmSzMwMBgyAABzFCaEURcm7yEwf4DROA8/4I5jNM7mJgAlWkH9g==',
@@ -542,6 +548,7 @@ def check_decoded_hist_counts(hist, multiplier):
     assert hist
     check_hist_counts(hist, hist.counts_len, multiplier)
 
+
 HDR_LOG_NAME = 'hdr.log'
 @pytest.mark.log
 def test_log():
@@ -568,6 +575,7 @@ def test_log():
     decoded_corrected_hist = log_reader.get_next_interval_histogram()
     check_percentiles(decoded_hist, decoded_corrected_hist)
     assert log_reader.get_next_interval_histogram() is None
+
 
 JHICCUP_V2_LOG_NAME = "test/jHiccup-2.0.7S.logV2.hlog"
 # Test input and expected output values
@@ -619,6 +627,7 @@ def test_jHiccup_v2_log():
 def test_output_percentile_distribution():
     histogram = load_histogram()
     histogram.output_percentile_distribution(open(os.devnull, 'wb'), 1000)
+
 
 ARRAY_SIZE = 10
 
@@ -720,6 +729,7 @@ def test_zz_encode():
     for int_type in [c_uint16, c_uint32, c_uint64]:
         check_zz_encode(int_type)
 
+
 # Few malicious V2 encodes using ZiZag LEB128/9 bytes
 # Valid large value overflows smaller size dest counter
 # This is the largest positive number (zigzag odd numbers are positive)
@@ -779,6 +789,7 @@ def check_zz_identity(src_array, int_type, min_nz_index, max_nz_index, total_cou
         assert res['max_nonzero_index'] == max_nz_index
     for index in range(ARRAY_SIZE):
         assert dst_array[index] == src_array[index]
+
 
 # A large positive value that can fit 16-bit signed
 ZZ_COUNTER_VALUE = 30000
