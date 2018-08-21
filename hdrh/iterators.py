@@ -105,7 +105,7 @@ class AbstractHdrIterator():
     def has_next(self):
         return self.total_count_to_current_index < self.total_count
 
-    def __next__(self):
+    def next(self):
         if self.total_count != self.histogram.total_count:
             raise HdrConcurrentModificationException()
         while self.has_next():
