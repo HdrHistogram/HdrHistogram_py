@@ -63,3 +63,5 @@ ChangeLog
 
 # System Files/Folders
 .DS_Store
+
+.pytest_cache/
