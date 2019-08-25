@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 '''
-Test code for the python version of HdrHistogram.
-
-Ported from
-https://github.com/HdrHistogram/HdrHistogram (Java)
-https://github.com/HdrHistogram/HdrHistogram_c (C)
+Utility to dump any hdrh histogram from encoded string
 
 Written by Alec Hothan
 
@@ -20,19 +16,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 '''
-import os
 import sys
 
 from hdrh.histogram import HdrHistogram
 
 
-def test_dump_histogram():
-    ENCODE_SAMPLES_HDRHISTOGRAM_C = [
-        # standard Hdr test histogram
-        'HISTFAAAACF4nJNpmSzMwMDAzAABMJoRTM6Y1mD/ASLwN5oJAFuQBYU=',
-        'HISTFAAAACh4nJNpmSzMwMDAyQABzFCaEUzOmNZg/wEisL2Kaasc00ImJgCC8Qbe'
-    ]
-    for hdrh in ENCODE_SAMPLES_HDRHISTOGRAM_C:
-        HdrHistogram.dump(hdrh, output=open(os.devnull, 'wb'))
-        HdrHistogram.dump(hdrh)
+def main():
+    args = sys.argv[1:]
+    if args:
+        encoded_histograms = args
+        for hdrh in encoded_histograms:
+            print('\nDumping histogram: ' + hdrh + '\n')
+            HdrHistogram.dump(hdrh)
+    else:
+        print('\nUsage: %s [<string encoded hdr histogram>]*\n' % (sys.argv[0]))
 
+
+if __name__ == '__main__':
+    main()

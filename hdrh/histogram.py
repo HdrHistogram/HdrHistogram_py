@@ -607,3 +607,26 @@ class HdrHistogram():
             self.significant_figures).encode() % (max, total))
         out_file.write(b'#[Buckets = %12d, SubBuckets     = %12d]\n' % (
             self.bucket_count, self.sub_bucket_count))
+
+    @staticmethod
+    def dump(encoded_histogram, output=None,
+             output_value_unit_scaling_ratio=1):
+        """Dump a string encoded histogram to the provider output
+
+        param output: a writable buffer output,
+                      if None output will be written to stdout
+        param output_value_unit_scaling_ratio: scaling ratio, the amount
+                    by which values will be divided for display, defaults to 1
+        """
+        histogram = HdrHistogram.decode(encoded_histogram)
+
+        if output is None:
+            # sys.stdout.buffer will raise AttributeError in python 2.7
+            try:
+                # python 3 requires .buffer to write bytes
+                output = sys.stdout.buffer
+            except AttributeError:
+                # in python 2.7, bytes can be writtent to sys.stdout
+                output = sys.stdout
+        histogram.output_percentile_distribution(output,
+                                                output_value_unit_scaling_ratio)

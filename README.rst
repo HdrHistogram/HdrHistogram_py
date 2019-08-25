@@ -191,6 +191,45 @@ Just run tox without any argument (the first run will take more time as tox will
       lint: commands succeeded
       congratulations :)
 
+Utility to dump an encoded histogram string (dump_hdrh)
+-------------------------------------------------------
+
+You can dump any encoded histogram using the dump_hdrh tool (installed along with the package).
+
+.. code::
+
+   $ dump_hdrh
+
+   Usage: dump_hdrh [<string encoded hdr histogram>]*
+
+You can pass one or more histogram strings to the tools:
+
+.. code::
+
+   $ dump_hdrh 'HISTFAAAACl4nJNpmSzMwMDAxQABzFCaEUzOmNZg/wEi0NzIyPSYlWmpGBMAh4gG4A=='
+
+   Dumping histogram: HISTFAAAACl4nJNpmSzMwMDAxQABzFCaEUzOmNZg/wEi0NzIyPSYlWmpGBMAh4gG4A==
+
+         Value     Percentile TotalCount 1/(1-Percentile)
+
+   139647.000 0.000000000000          1           1.00
+   139647.000 0.100000000000          1           1.11
+   139647.000 0.190000000000          1           1.23
+   139647.000 0.271000000000          1           1.37
+   187135.000 0.343900000000          2           1.52
+   187135.000 0.409510000000          2           1.69
+   187135.000 0.468559000000          2           1.88
+   187135.000 0.521703100000          2           2.09
+   187135.000 0.569532790000          2           2.32
+   187135.000 0.612579511000          2           2.58
+   187135.000 0.651321559900          2           2.87
+   477695.000 0.686189403910          3           3.19
+   477695.000 1.000000000000          3
+   #[Mean    =   268074.667, StdDeviation   =   149397.390]
+   #[Max     =   477695.000, TotalCount     =        3.000]
+   #[Buckets =           14, SubBuckets     =         2048]
+
+
 Aggregation of Distributed Histograms
 -------------------------------------
 
