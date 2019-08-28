@@ -8,7 +8,7 @@ install:
 - python setup.py build
 - python setup.py install
 script:
-- flake8 --ignore=E305,E302 hdrh test
+- flake8 --ignore=E305,E302.W504 hdrh test
 - pylint --rcfile pylint.rc hdrh test
 - py.test -s
 deploy:
