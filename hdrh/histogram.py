@@ -629,4 +629,4 @@ class HdrHistogram():
                 # in python 2.7, bytes can be writtent to sys.stdout
                 output = sys.stdout
         histogram.output_percentile_distribution(output,
-                                                output_value_unit_scaling_ratio)
+                                                 output_value_unit_scaling_ratio)

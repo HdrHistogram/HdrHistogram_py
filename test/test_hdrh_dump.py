@@ -21,18 +21,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 import os
-import sys
 
 from hdrh.histogram import HdrHistogram
 
 
 def test_dump_histogram():
-    ENCODE_SAMPLES_HDRHISTOGRAM_C = [
+    samples = [
         # standard Hdr test histogram
         'HISTFAAAACF4nJNpmSzMwMDAzAABMJoRTM6Y1mD/ASLwN5oJAFuQBYU=',
         'HISTFAAAACh4nJNpmSzMwMDAyQABzFCaEUzOmNZg/wEisL2Kaasc00ImJgCC8Qbe'
     ]
-    for hdrh in ENCODE_SAMPLES_HDRHISTOGRAM_C:
+    for hdrh in samples:
         HdrHistogram.dump(hdrh, output=open(os.devnull, 'wb'))
         HdrHistogram.dump(hdrh)
-
