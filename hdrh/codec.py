@@ -35,6 +35,7 @@ from ctypes import c_byte
 from ctypes import c_ushort
 from ctypes import c_uint
 from ctypes import c_ulonglong
+from ctypes import c_double
 
 import zlib
 
@@ -98,7 +99,7 @@ class PayloadHeader(BigEndianStructure):
         ("significant_figures", c_uint),
         ("lowest_trackable_value", c_ulonglong),
         ("highest_trackable_value", c_ulonglong),
-        ("conversion_ratio_bits", c_ulonglong)]
+        ("conversion_ratio_bits", c_double)]
 
 
 payload_header_size = ctypes.sizeof(PayloadHeader)
