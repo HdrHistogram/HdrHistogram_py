@@ -618,6 +618,8 @@ def test_jHiccup_v2_log():
             accumulated_histogram.add(decoded_histogram)
             # These logs use 8 byte counters
             assert decoded_histogram.get_word_size() == 8
+            # These logs use the default 1.0 conversion ratio
+            assert decoded_histogram.get_int_to_double_conversion_ratio() == 1.0
         for statement in target_numbers:
             assert eval(statement) == target_numbers[statement]
 

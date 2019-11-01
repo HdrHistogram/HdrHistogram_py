@@ -574,6 +574,9 @@ class HdrHistogram():
     def get_word_size(self):
         return self.word_size
 
+    def get_int_to_double_conversion_ratio(self):
+        return self.int_to_double_conversion_ratio
+
     def output_percentile_distribution(self,
                                        out_file,
                                        output_value_unit_scaling_ratio,
