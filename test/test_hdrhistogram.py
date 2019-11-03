@@ -425,17 +425,17 @@ def check_hist_encode(word_size,
 ENCODE_ARG_LIST = (
     # word size digits  expected_compressed_length, fill_start%, fill_count%
     # best case when all counters are zero
-    (8, 3, 48, 0, 0),        # V1=52 385 = size when compressing entire counts array
-    (8, 2, 48, 0, 0),        # 126
+    (8, 3, 52, 0, 0),        # V1=52 385 = size when compressing entire counts array
+    (8, 2, 52, 0, 0),        # 126
     # typical case when all counters are aggregated in a small contiguous area
-    (8, 3, 15560, 30, 20),   # V1=16452
-    (8, 2, 1688, 30, 20),    # V1=2096
+    (8, 3, 15564, 30, 20),   # V1=16452
+    (8, 2, 1692, 30, 20),    # V1=2096
     # worst case when all counters are different
     (8, 3, 76892, 0, 100),   # V1=80680
-    (8, 2, 9340, 0, 100),    # V1=10744
+    (8, 2, 9344, 0, 100),    # V1=10744
     # worst case 32-bit and 16-bit counters
     (2, 3, 76892, 0, 100),   # V1=68936
-    (2, 2, 9340, 0, 100),    # V1=9144
+    (2, 2, 9344, 0, 100),    # V1=9144
 )
 
 @pytest.mark.codec
@@ -618,6 +618,8 @@ def test_jHiccup_v2_log():
             accumulated_histogram.add(decoded_histogram)
             # These logs use 8 byte counters
             assert decoded_histogram.get_word_size() == 8
+            # These logs use the default 1.0 conversion ratio
+            assert decoded_histogram.get_int_to_double_conversion_ratio() == 1.0
         for statement in target_numbers:
             assert eval(statement) == target_numbers[statement]
 
