@@ -20,17 +20,25 @@ import sys
 
 from hdrh.histogram import HdrHistogram
 
+def dump(args=None):
+    """
+    Dump a list of Hdr histograms encodings
 
-def main():
-    args = sys.argv[1:]
+    args: list of strings, each string representing an Hdr encoding
+    """
+    if not args:
+        args = sys.argv[1:]
+    res = 1
     if args:
         encoded_histograms = args
         for hdrh in encoded_histograms:
             print('\nDumping histogram: ' + hdrh + '\n')
             HdrHistogram.dump(hdrh)
+        res = 0
     else:
         print('\nUsage: %s [<string encoded hdr histogram>]*\n' % (sys.argv[0]))
+    return res
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(dump())

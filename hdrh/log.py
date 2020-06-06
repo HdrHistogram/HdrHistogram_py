@@ -138,6 +138,9 @@ re_start_time = re.compile(r'#\[StartTime: *([\d\.]*) ')
 # "#[BaseTime: %f (seconds since epoch)]\n"
 re_base_time = re.compile(r'#\[BaseTime: *([\d\.]*) ')
 
+
+# 0.127,1.007,2.769,HISTFAAAAEV42pNpmSz...
+# Tag=A,0.127,1.007,2.769,HISTFAAAAEV42pNpmSz
 # "%f,%f,%f,%s\n"
 re_histogram_interval = re.compile(r'([\d\.]*),([\d\.]*),([\d\.]*),(.*)')
 
@@ -231,6 +234,13 @@ class HistogramLogReader():
                     self.observed_base_time = True
                     continue
 
+            # check tag "Tag=<>,"
+            if line.startswith('Tag='):
+                index = line.find(',')
+                tag = line[4:index]
+                line = line[index + 1:]
+            else:
+                tag = None
             match_res = re_histogram_interval.match(line)
             if not match_res:
                 # probably a legend line that starts with "\"StartTimestamp"
@@ -286,6 +296,8 @@ class HistogramLogReader():
                 histogram = HdrHistogram.decode(cpayload)
                 histogram.set_start_time_stamp(absolute_start_time_stamp_sec * 1000.0)
                 histogram.set_end_time_stamp(absolute_end_time_stamp_sec * 1000.0)
+            if tag:
+                histogram.set_tag(tag)
             return histogram
 
     def get_next_interval_histogram(self,

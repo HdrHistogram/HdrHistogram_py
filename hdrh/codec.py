@@ -388,7 +388,3 @@ def dump_payload(counts, max_index):
     # there is always a last series to dump
     _dump_series(series_start_index, index, counts[index])
     print('[%06d] --END-- total count=%d' % (index + 1, total_count))
-
-def hex_dump(label, hstr):
-    print(label)
-    print(':'.join(x.encode('hex') for x in hstr))

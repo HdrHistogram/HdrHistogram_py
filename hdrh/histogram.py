@@ -136,6 +136,8 @@ class HdrHistogram():
         self.counts = self.encoder.get_counts()
         self.start_time_stamp_msec = 0
         self.end_time_stamp_msec = 0
+        # no tag by default
+        self.tag = None
 
     def _clz(self, value):
         """calculate the leading zeros, equivalent to C __builtin_clzll()
@@ -421,24 +423,24 @@ class HdrHistogram():
         '''
         return self.encoder.encode()
 
-    def adjust_internal_tacking_values(self,
-                                       min_non_zero_index,
-                                       max_index,
-                                       total_added):
-        '''Called during decoding and add to adjust the new min/max value and
-        total count
+    # def adjust_internal_tacking_values(self,
+    #                                   min_non_zero_index,
+    #                                   max_index,
+    #                                   total_added):
+    #    '''Called during decoding and add to adjust the new min/max value and
+    #    total count
 
-        Args:
-            min_non_zero_index min nonzero index of all added counts (-1 if none)
-            max_index max index of all added counts (-1 if none)
-        '''
-        if max_index >= 0:
-            max_value = self.get_highest_equivalent_value(self.get_value_from_index(max_index))
-            self.max_value = max(self.max_value, max_value)
-        if min_non_zero_index >= 0:
-            min_value = self.get_value_from_index(min_non_zero_index)
-            self.min_value = min(self.min_value, min_value)
-        self.total_count += total_added
+    #   Args:
+    #        min_non_zero_index min nonzero index of all added counts (-1 if none)
+    #        max_index max index of all added counts (-1 if none)
+    #    '''
+    #    if max_index >= 0:
+    #        max_value = self.get_highest_equivalent_value(self.get_value_from_index(max_index))
+    #        self.max_value = max(self.max_value, max_value)
+    #    if min_non_zero_index >= 0:
+    #        min_value = self.get_value_from_index(min_non_zero_index)
+    #        self.min_value = min(self.min_value, min_value)
+    #    self.total_count += total_added
 
     def set_internal_tacking_values(self,
                                     min_non_zero_index,
@@ -495,6 +497,18 @@ class HdrHistogram():
                 [by convention] in msec since the epoch.
         '''
         self.end_time_stamp_msec = time_stamp_msec
+
+    def set_tag(self, tag):
+        """
+        Associate a tag to this histogram.
+        """
+        self.tag = tag
+
+    def get_tag(self):
+        """
+        Retrieve the tag for this histogram.
+        """
+        return self.tag
 
     def add(self, other_hist):
         highest_recordable_value = \
@@ -633,3 +647,30 @@ class HdrHistogram():
                 output = sys.stdout
         histogram.output_percentile_distribution(output,
                                                  output_value_unit_scaling_ratio)
+
+    def equals(self, other):
+        """
+        Check if this instance of histogram is equal to the provided histogram.
+
+        other: the other histogram to compare to
+        return: True if this histogram are equivalent with the other.
+        """
+        if self == other:
+            return True
+        if self.lowest_trackable_value != other.lowest_trackable_value or \
+           self.int_to_double_conversion_ratio != other.int_to_double_conversion_ratio or \
+           self.significant_figures != other.significant_figures:
+            return False
+        if self.get_total_count() != other.get_total_count():
+            return False
+        if self.get_max_value() != other.get_max_value():
+            return False
+        #         if (getMinNonZeroValue() != that.getMinNonZeroValue()) {
+        if self.get_min_value() != other.get_min_value():
+            return False
+        if self.counts_len != other.counts_len:
+            return False
+        for index in range(self.counts_len):
+            if self.get_count_at_index(index) != other.get_count_at_index(index):
+                return False
+        return True

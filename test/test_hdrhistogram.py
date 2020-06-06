@@ -48,6 +48,7 @@ from hdrh.log import HistogramLogWriter
 from hdrh.log import HistogramLogReader
 from hdrh.codec import HdrPayload
 from hdrh.codec import HdrCookieException
+from hdrh.dump import dump
 
 def python_bitness():
     "cross-platform way of calculating bitness, returns either 32 or 64"
@@ -72,6 +73,8 @@ def test_basic():
     assert histogram.counts_len == expected_counts_len
     assert histogram.unit_magnitude == 0
     assert histogram.sub_bucket_half_count_magnitude == 10
+    assert histogram.get_count_at_sub_bucket(0, 0) == 0
+    assert histogram.equals(histogram)
 
 @pytest.mark.basic
 def test_empty_histogram():
@@ -296,6 +299,13 @@ def test_reset():
     assert histogram.get_value_at_percentile(99.99) == 0
     assert histogram.get_start_time_stamp() == sys.maxsize
     assert histogram.get_end_time_stamp() == 0
+    print(histogram.get_percentile_to_value_dict([90, 99, 99.9]))
+
+@pytest.mark.basic
+def test_perc_value_list():
+    histogram = load_histogram()
+    res = {90: 1000, 99.999: 100007935}
+    assert histogram.get_percentile_to_value_dict(res.keys()) == res
 
 @pytest.mark.basic
 def test_invalid_significant_figures():
@@ -365,6 +375,10 @@ def check_hdr_payload(counter_size):
 
     # now verify that the counters are identical to the original
     check_counts(dpayload, HDR_PAYLOAD_COUNTS)
+
+    # run dump
+    payload.dump(label='test')
+
 
 @pytest.mark.codec
 def test_hdr_payload():
@@ -625,6 +639,39 @@ def test_jHiccup_v2_log():
 
         log_reader.close()
 
+
+TAGGED_V2_LOG = 'test/tagged-Log.logV2.hlog'
+@pytest.mark.log
+def test_tagged_v2_log():
+    histogram_count = 0
+    total_count = 0
+    accumulated_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    accumulated_histogram_tags = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    log_reader = HistogramLogReader(TAGGED_V2_LOG, accumulated_histogram)
+    while 1:
+        decoded_histogram = log_reader.get_next_interval_histogram()
+        if not decoded_histogram:
+            break
+        histogram_count += 1
+        total_count += decoded_histogram.get_total_count()
+        if decoded_histogram.get_tag() == 'A':
+            accumulated_histogram_tags.add(decoded_histogram)
+        else:
+            assert decoded_histogram.get_tag() is None
+            accumulated_histogram.add(decoded_histogram)
+
+    assert accumulated_histogram.equals(accumulated_histogram_tags)
+    assert total_count == 32290
+
+@pytest.mark.log
+def test_tagged_v2_log_add():
+    accumulated_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    log_reader = HistogramLogReader(TAGGED_V2_LOG, accumulated_histogram)
+    while 1:
+        decoded_histogram = log_reader.add_next_interval_histogram()
+        if not decoded_histogram:
+            break
+
 @pytest.mark.log
 def test_output_percentile_distribution():
     histogram = load_histogram()
@@ -818,10 +865,6 @@ def test_zz_decode():
         for hdr_len in [0, 8]:
             check_zz_decode(int_type, hdr_len)
 
-def hex_dump(label, str):
-    print(label)
-    print(':'.join(x.encode('hex') for x in str))
-
 @pytest.mark.basic
 def test_get_value_at_percentile():
     histogram = HdrHistogram(LOWEST, 3600000000, 3)
@@ -836,3 +879,6 @@ def test_get_value_at_percentile():
     # val = histogram.get_value_at_percentile(25)
     # assert histogram.get_value_at_percentile(25) == 2
     assert histogram.get_value_at_percentile(30) == 2
+
+def test_dump():
+    dump(['HISTFAAAACl4nJNpmSzMwMBgyAABzFCaEURcm7yEwf4DROA8/4I5jNM7mJgAlWkH9g=='])
