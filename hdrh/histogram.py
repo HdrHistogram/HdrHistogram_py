@@ -417,9 +417,12 @@ class HdrHistogram():
         return LogIterator(self, value_units_first_bucket, log_base)
 
     def encode(self):
-        '''Encode this histogram
+        '''
+        Encode this histogram into a histoblob.
+
         Return:
-            a string containing the base64 encoded compressed histogram (V1 format)
+            the histoblob describing this histogram (a string containing the base64 encoded 
+            compressed histogram, V2 format)
         '''
         return self.encoder.encode()
 
@@ -544,8 +547,8 @@ class HdrHistogram():
     def decode_and_add(self, encoded_histogram):
         '''Decode an encoded histogram and add it to this histogram
         Args:
-            encoded_histogram (string) an encoded histogram
-                following the V1 format, such as one returned by the encode() method
+            encoded_histogram (string) a histoblob encoded histogram
+                following the V2 format, such as one returned by the encode() method
         Exception:
             TypeError in case of base64 decode error
             HdrCookieException:
@@ -562,7 +565,7 @@ class HdrHistogram():
 
     @staticmethod
     def decode(encoded_histogram, b64_wrap=True):
-        '''Decode an encoded histogram and return a new histogram instance that
+        '''Decode a histoblob and return a new histogram instance that
         has been initialized with the decoded content
         Return:
             a new histogram instance representing the decoded content
@@ -628,7 +631,8 @@ class HdrHistogram():
     @staticmethod
     def dump(encoded_histogram, output=None,
              output_value_unit_scaling_ratio=1):
-        """Dump a string encoded histogram to the provider output
+        """
+        Dump a the histogram percentile table (.hgrm) to the provider output.
 
         param output: a writable buffer output,
                       if None output will be written to stdout
