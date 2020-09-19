@@ -139,7 +139,7 @@ class HdrPayload():
             # ctype counter type
             self.counter_ctype = payload_counter_ctype[word_size]
         except IndexError:
-            raise ValueError('Invalid word size') from None
+            raise ValueError('Invalid word size')
         if not self.counter_ctype:
             raise ValueError('Invalid word size')
         if compressed_payload:
