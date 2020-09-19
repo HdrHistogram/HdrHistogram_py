@@ -421,7 +421,7 @@ class HdrHistogram():
         Encode this histogram into a histoblob.
 
         Return:
-            the histoblob describing this histogram (a string containing the base64 encoded 
+            the histoblob describing this histogram (a string containing the base64 encoded
             compressed histogram, V2 format)
         '''
         return self.encoder.encode()
