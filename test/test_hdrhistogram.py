@@ -24,6 +24,7 @@ from __future__ import print_function
 from builtins import range
 import cProfile
 import datetime
+import io
 import os
 import struct
 import zlib
@@ -49,6 +50,7 @@ from hdrh.log import HistogramLogReader
 from hdrh.codec import HdrPayload
 from hdrh.codec import HdrCookieException
 from hdrh.dump import dump
+
 
 def python_bitness():
     "cross-platform way of calculating bitness, returns either 32 or 64"
@@ -676,6 +678,16 @@ def test_tagged_v2_log_add():
 def test_output_percentile_distribution():
     histogram = load_histogram()
     histogram.output_percentile_distribution(open(os.devnull, 'wb'), 1000)
+
+@pytest.mark.log
+def test_output_percentile_distribution_csv():
+    buf = io.BytesIO()
+    histogram = load_histogram()
+    histogram.output_percentile_distribution(buf, 1000, use_csv=True)
+    lines = buf.getvalue().decode('utf-8').rstrip().split('\n')
+    assert lines[0] == '"Value","Percentile","TotalCount","1/(1-Percentile)"'
+    assert lines[1] == '1.000,0.000000000000,10000,1.00'
+    assert lines[-1] == '100007.935,1.000000000000,10001,Infinity'
 
 
 ARRAY_SIZE = 10
