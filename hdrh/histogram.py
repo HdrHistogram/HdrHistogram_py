@@ -597,12 +597,21 @@ class HdrHistogram():
     def output_percentile_distribution(self,
                                        out_file,
                                        output_value_unit_scaling_ratio,
-                                       ticks_per_half_distance=5):
-        out_file.write(b'%12s %14s %10s %14s\n\n' %
-                       (b'Value', b'Percentile', b'TotalCount', b'1/(1-Percentile)'))
+                                       ticks_per_half_distance=5,
+                                       use_csv=False):
+        if use_csv:
+            out_file.write(b'"Value","Percentile","TotalCount","1/(1-Percentile)"\n')
+        else:
+            out_file.write(b'%12s %14s %10s %14s\n\n' %
+                           (b'Value', b'Percentile', b'TotalCount', b'1/(1-Percentile)'))
 
-        percentile_format = '%12.{}f %2.12f %10d %14.2f\n'.format(self.significant_figures)
-        last_line_percentile_format = '%12.{}f %2.12f %10d\n'.format(self.significant_figures)
+        if use_csv:
+            percentile_format = '%.{}f,%.12f,%d,%.2f\n'.format(self.significant_figures)
+            last_line_percentile_format = '%.{}f,%.12f,%d,Infinity\n'.format(self.significant_figures)
+        else:
+            percentile_format = '%12.{}f %2.12f %10d %14.2f\n'.format(self.significant_figures)
+            last_line_percentile_format = '%12.{}f %2.12f %10d\n'.format(self.significant_figures)
+
         for iter_value in self.get_percentile_iterator(ticks_per_half_distance):
             value = iter_value.value_iterated_to / output_value_unit_scaling_ratio
             percentile = iter_value.percentile_level_iterated_to / 100
@@ -615,6 +624,9 @@ class HdrHistogram():
                 out_file.write(last_line_percentile_format.encode() % (value,
                                                                        percentile,
                                                                        total_count))
+
+        if use_csv:
+            return
 
         mean = self.get_mean_value() / output_value_unit_scaling_ratio
         stddev = self.get_stddev()
