@@ -280,7 +280,7 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
     int64_t min_nonzero_index = -1;
     int64_t max_nonzero_index = 0;
 
-    if (!PyArg_ParseTuple(args, "s#ilii", &src, &src_len,
+    if (!PyArg_ParseTuple(args, "s#iLii", &src, &src_len,
                           &read_index,
                           &vdst, &max_index,
                           &word_size)) {
