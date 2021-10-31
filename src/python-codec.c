@@ -236,7 +236,7 @@ static PyObject *py_hdr_encode(PyObject *self, PyObject *args) {
     for (index=0; index < max_index;) {
         uint64_t value = get_entry(vsrc, index);
         ++index;
-         
+
         /* max encodable value must fit in 63 bit */
         if (value == 0) {
             int64_t zeros = 1;
@@ -269,7 +269,7 @@ static PyObject *py_hdr_encode(PyObject *self, PyObject *args) {
  */
 static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
     uint8_t *src;   /* t#: read only character buffer */
-    int src_len;    /*     its length */
+    Py_ssize_t src_len;    /*     its length */
     int read_index; /* i: start decoding from this offset, must be < src_len */
     void *vdst;     /* l: address of a counts array */
     int max_index;  /* i: number of entries in that array, must be > 0 */
@@ -380,7 +380,7 @@ static PyObject *py_hdr_add_array(PyObject *self, PyObject *args) {
     int max_index;  /* i: entries from 0 to max_index-1 are added */
     int word_size;  /* i: size of each entry in bytes 2,4,8 */
     uint64_t total_count = 0;
-    
+
     if (!PyArg_ParseTuple(args, "llii", &vdst, &vsrc, &max_index, &word_size)) {
         return NULL;
     }
