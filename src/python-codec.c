@@ -364,7 +364,7 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
             }
         }
     }
-    return Py_BuildValue("{s:i,s:i,s:i}",
+    return Py_BuildValue("{s:L,s:L,s:L}",
                         "total", total_count,
                         "min_nonzero_index", min_nonzero_index,
                         "max_nonzero_index", max_nonzero_index);
@@ -457,7 +457,7 @@ static PyObject *py_hdr_add_array(PyObject *self, PyObject *args) {
         PyErr_SetString(PyExc_ValueError, "Invalid word size");
         return NULL;
     }
-    return Py_BuildValue("i", total_count);
+    return Py_BuildValue("L", total_count);
 }
 
 #define ENCODE_DOCSTRING "Encode a counts array into a V2 varint buffer"
