@@ -172,23 +172,23 @@ Just run tox without any argument (the first run will take more time as tox will
     $ tox
     GLOB sdist-make: /openstack/pyhdr/HdrHistogram_py/setup.py
     py27 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    py27 installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,future==0.16.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
+    py27 installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
     py27 runtests: PYTHONHASHSEED='4015036329'
     py27 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/HdrHistogram_py/.tox/py27/tmp
     ......................ss.........
     31 passed, 2 skipped in 5.14 seconds
     py3 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    py3 installed: You are using pip version 8.1.1, however version 9.0.1 is available.,You should consider upgrading via the 'pip install --upgrade pip' command.,flake8==2.5.4,future==0.15.2,hdrhistogram==0.5.2,mccabe==0.4.0,pbr==1.9.1,pep8==1.7.0,py==1.4.31,pyflakes==1.0.0,pytest==2.9.1
+    py3 installed: You are using pip version 8.1.1, however version 9.0.1 is available.,You should consider upgrading via the 'pip install --upgrade pip' command.,flake8==2.5.4,hdrhistogram==0.5.2,mccabe==0.4.0,pbr==1.9.1,pep8==1.7.0,py==1.4.31,pyflakes==1.0.0,pytest==2.9.1
     py3 runtests: PYTHONHASHSEED='4015036329'
     py3 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/HdrHistogram_py/.tox/py3/tmp
     s......................ss.........
     31 passed, 3 skipped in 5.11 seconds
     pep8 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    pep8 installed: You are using pip version 8.1.1, however version 9.0.1 is available.,You should consider upgrading via the 'pip install --upgrade pip' command.,flake8==2.5.4,future==0.15.2,hdrhistogram==0.5.2,mccabe==0.4.0,pbr==1.9.1,pep8==1.7.0,py==1.4.31,pyflakes==1.0.0,pytest==2.9.1
+    pep8 installed: You are using pip version 8.1.1, however version 9.0.1 is available.,You should consider upgrading via the 'pip install --upgrade pip' command.,flake8==2.5.4,hdrhistogram==0.5.2,mccabe==0.4.0,pbr==1.9.1,pep8==1.7.0,py==1.4.31,pyflakes==1.0.0,pytest==2.9.1
     pep8 runtests: PYTHONHASHSEED='4015036329'
     pep8 runtests: commands[0] | flake8 hdrh test
     lint inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    lint installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,future==0.16.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
+    lint installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
     lint runtests: PYTHONHASHSEED='4015036329'
     lint runtests: commands[0] | pylint --rcfile pylint.rc hdrh test
 
