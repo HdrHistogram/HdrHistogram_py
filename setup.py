@@ -21,7 +21,6 @@ class Tox(test):
 
 if __name__ == '__main__':
     setup(setup_requires=['pbr'], pbr=True,
-          install_requires=['future>=0.15.2'],
           keywords='hdrhistogram hdr histogram high dynamic range',
           tests_require=['tox'],
           cmdclass={'test': Tox},
