@@ -36,9 +36,9 @@ from ctypes import c_double
 
 import zlib
 
-from pyhdrh import add_array  # pylint: disable=no-name-in-module
-from pyhdrh import decode     # pylint: disable=no-name-in-module
-from pyhdrh import encode     # pylint: disable=no-name-in-module
+from pyhdrh import add_array  # pylint: disable=no-name-in-module,import-error
+from pyhdrh import decode     # pylint: disable=no-name-in-module,import-error
+from pyhdrh import encode     # pylint: disable=no-name-in-module,import-error
 
 V2_ENCODING_COOKIE_BASE = 0x1c849303
 V2_COMPRESSION_COOKIE_BASE = 0x1c849304

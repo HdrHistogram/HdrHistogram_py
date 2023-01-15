@@ -39,9 +39,9 @@ from ctypes import string_at
 
 import pytest
 
-from pyhdrh import add_array  # pylint: disable=no-name-in-module
-from pyhdrh import encode     # pylint: disable=no-name-in-module
-from pyhdrh import decode     # pylint: disable=no-name-in-module
+from pyhdrh import add_array  # pylint: disable=no-name-in-module,import-error
+from pyhdrh import encode     # pylint: disable=no-name-in-module,import-error
+from pyhdrh import decode     # pylint: disable=no-name-in-module,import-error
 
 from hdrh.histogram import HdrHistogram
 from hdrh.log import HistogramLogWriter

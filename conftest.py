@@ -1,3 +1,6 @@
+'''
+Used to manage perf unit test
+'''
 import pytest
 def pytest_addoption(parser):
     parser.addoption("--runperf", action="store_true",
