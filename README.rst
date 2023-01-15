@@ -482,16 +482,9 @@ small pbr python package which takes care of the versioning (among other things)
 
 Publishing a New Release to PyPI
 --------------------------------
-This requires twine to be installed and the API token to publish to PyPI.
-After applying a new tag, build the new distribution on a Linux server then upload using twine:
 
-.. code::
-
-   rm -f dist/*
-   python setup.py sdist bdist_wheel
-   twine upload dist/*
-
-For username, use "__token__", then provide the api token (see  https://packaging.python.org/en/latest/tutorials/packaging-projects/)
+To create a new release, apply a new release tag then create a new Release using github (this requires right permission). 
+The github CI will build the distributions and push to PyPI.
 
 
 Licensing
