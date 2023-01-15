@@ -30,8 +30,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 from __future__ import division
-# from builtins import object
-import datetime
+from datetime import datetime
 import re
 import sys
 from hdrh.histogram import HdrHistogram
@@ -159,7 +158,7 @@ class HistogramLogReader():
         self.observed_start_time = False
         self.base_time_sec = 0.0
         self.observed_base_time = False
-        self.input_file = open(input_file_name, "r")
+        self.input_file = open(input_file_name, "r", encoding="utf-8") # pylint: disable=consider-using-with
         self.reference_histogram = reference_histogram
 
     def get_start_time_sec(self):

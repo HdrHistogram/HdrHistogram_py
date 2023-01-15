@@ -23,9 +23,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 from __future__ import print_function
-from builtins import str
-from builtins import range
-# from builtins import object
 
 import base64
 import ctypes
@@ -39,9 +36,9 @@ from ctypes import c_double
 
 import zlib
 
-from pyhdrh import add_array
-from pyhdrh import decode
-from pyhdrh import encode
+from pyhdrh import add_array  # pylint: disable=no-name-in-module
+from pyhdrh import decode     # pylint: disable=no-name-in-module
+from pyhdrh import encode     # pylint: disable=no-name-in-module
 
 V2_ENCODING_COOKIE_BASE = 0x1c849303
 V2_COMPRESSION_COOKIE_BASE = 0x1c849304
@@ -139,7 +136,7 @@ class HdrPayload():
             # ctype counter type
             self.counter_ctype = payload_counter_ctype[word_size]
         except IndexError:
-            raise ValueError('Invalid word size')
+            raise ValueError('Invalid word size')  # pylint: disable=raise-missing-from
         if not self.counter_ctype:
             raise ValueError('Invalid word size')
         if compressed_payload:
@@ -233,7 +230,7 @@ class HdrPayload():
                                 varint_len)
 
             # copy the header after updating the varint stream length
-            self.payload.payload_len = varint_len
+            self.payload.payload_len = varint_len # pylint: disable=attribute-defined-outside-init
             ctypes.memmove(addressof(encode_buf), addressof(self.payload), payload_header_size)
 
             cdata = zlib.compress(ctypes.string_at(encode_buf, payload_header_size + varint_len))
@@ -305,7 +302,7 @@ class HdrHistogramEncoder():
             relevant_length = 0
         cpayload = self.payload.compress(relevant_length)
         if self.b64_wrap:
-            self.header.length = len(cpayload)
+            self.header.length = len(cpayload)  # pylint: disable=attribute-defined-outside-init
             header_str = ctypes.string_at(addressof(self.header), ext_header_size)
             return base64.b64encode(header_str + cpayload)
         return cpayload

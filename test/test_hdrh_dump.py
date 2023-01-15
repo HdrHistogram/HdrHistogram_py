@@ -32,5 +32,6 @@ def test_dump_histogram():
         'HISTFAAAACh4nJNpmSzMwMDAyQABzFCaEUzOmNZg/wEisL2Kaasc00ImJgCC8Qbe'
     ]
     for hdrh in samples:
-        HdrHistogram.dump(hdrh, output=open(os.devnull, 'wb'))
+        with open(os.devnull, 'wb') as fnull:
+            HdrHistogram.dump(hdrh, output=fnull)
         HdrHistogram.dump(hdrh)

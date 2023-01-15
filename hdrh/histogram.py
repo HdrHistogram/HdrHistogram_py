@@ -20,8 +20,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 from __future__ import division, print_function
-from builtins import range
-# from builtins import object
 import math
 import sys
 from hdrh.iterators import AllValuesIterator
@@ -633,10 +631,10 @@ class HdrHistogram():
         out_file.write('#[Mean    = %12.{0}f, StdDeviation   = %12.{0}f]\n'.
                        format(self.significant_figures).encode() % (mean, stddev))
 
-        max = self.get_max_value() / output_value_unit_scaling_ratio
+        max_value = self.get_max_value() / output_value_unit_scaling_ratio
         total = self.get_total_count()
         out_file.write('#[Max     = %12.{0}f, TotalCount     = %12.{0}f]\n'.format(
-            self.significant_figures).encode() % (max, total))
+            self.significant_figures).encode() % (max_value, total))
         out_file.write(b'#[Buckets = %12d, SubBuckets     = %12d]\n' % (
             self.bucket_count, self.sub_bucket_count))
 

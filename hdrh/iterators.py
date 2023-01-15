@@ -106,7 +106,7 @@ class AbstractHdrIterator():
         return self.total_count_to_current_index < self.total_count
 
     def next(self):
-        return self.__next__()
+        return next(self)
 
     def __next__(self):
         if self.total_count != self.histogram.total_count:
@@ -242,10 +242,10 @@ class LinearIterator(AbstractLiLoIteratortype):
         AbstractLiLoIteratortype.__init__(self, histogram, value_units_per_bucket)
         self.value_units_per_bucket = value_units_per_bucket
 
-    def reset(self, histogram=None, value_units_per_bucket=0):
-        AbstractLiLoIteratortype.reset(self, histogram, value_units_per_bucket)
-        if value_units_per_bucket:
-            self.value_units_per_bucket = value_units_per_bucket
+    def reset(self, histogram=None, next_value_report_lev=0):
+        AbstractLiLoIteratortype.reset(self, histogram, next_value_report_lev)
+        if next_value_report_lev:
+            self.value_units_per_bucket = next_value_report_lev
 
     def increment_iteration_level(self):
         self.next_value_report_lev += self.value_units_per_bucket
@@ -260,12 +260,12 @@ class LogIterator(AbstractLiLoIteratortype):
     and increase exponentially according to log_base, terminating when all
     recorded histogram values are exhausted.
     '''
-    def __init__(self, histogram, value_units_first_bucket, log_base):
-        AbstractLiLoIteratortype.__init__(self, histogram, value_units_first_bucket)
+    def __init__(self, histogram, next_value_report_lev, log_base):
+        AbstractLiLoIteratortype.__init__(self, histogram, next_value_report_lev)
         self.log_base = log_base
 
-    def reset(self, histogram=None, value_units_first_bucket=0, log_base=0):
-        AbstractLiLoIteratortype.reset(self, histogram, value_units_first_bucket)
+    def reset(self, histogram=None, next_value_report_lev=0, log_base=0):
+        AbstractLiLoIteratortype.reset(self, histogram, next_value_report_lev)
         if log_base:
             self.log_base = log_base
 

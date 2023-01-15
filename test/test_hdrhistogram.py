@@ -21,7 +21,6 @@ limitations under the License.
 '''
 from __future__ import division
 from __future__ import print_function
-from builtins import range
 import cProfile
 import datetime
 import io
@@ -40,9 +39,9 @@ from ctypes import string_at
 
 import pytest
 
-from pyhdrh import add_array
-from pyhdrh import encode
-from pyhdrh import decode
+from pyhdrh import add_array  # pylint: disable=no-name-in-module
+from pyhdrh import encode     # pylint: disable=no-name-in-module
+from pyhdrh import decode     # pylint: disable=no-name-in-module
 
 from hdrh.histogram import HdrHistogram
 from hdrh.log import HistogramLogWriter
@@ -572,7 +571,7 @@ def test_log():
     empty_hist = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
     hist = load_histogram()
     corrected_hist = load_corrected_histogram()
-    with open(HDR_LOG_NAME, 'w') as hdr_log:
+    with open(HDR_LOG_NAME, 'w', encoding="utf-8") as hdr_log:
         log_writer = HistogramLogWriter(hdr_log)
         log_writer.output_comment("Logged with hdrhistogram.py")
         log_writer.output_log_format_version()
@@ -626,7 +625,7 @@ def test_jHiccup_v2_log():
         total_count = 0
         target_numbers = checklist.pop('target')
         while 1:
-            decoded_histogram = log_reader.get_next_interval_histogram(**checklist)
+            decoded_histogram = log_reader.get_next_interval_histogram(**checklist)    # pylint: disable=unexpected-keyword-arg
             if not decoded_histogram:
                 break
             histogram_count += 1
@@ -637,7 +636,7 @@ def test_jHiccup_v2_log():
             # These logs use the default 1.0 conversion ratio
             assert decoded_histogram.get_int_to_double_conversion_ratio() == 1.0
         for statement in target_numbers:
-            assert eval(statement) == target_numbers[statement]
+            assert eval(statement) == target_numbers[statement]   # pylint: disable=eval-used
 
         log_reader.close()
 
@@ -677,7 +676,8 @@ def test_tagged_v2_log_add():
 @pytest.mark.log
 def test_output_percentile_distribution():
     histogram = load_histogram()
-    histogram.output_percentile_distribution(open(os.devnull, 'wb'), 1000)
+    with open(os.devnull, 'wb') as fnull:
+        histogram.output_percentile_distribution(fnull, 1000)
 
 @pytest.mark.log
 def test_output_percentile_distribution_csv():
