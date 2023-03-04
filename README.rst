@@ -2,7 +2,7 @@
 Overview
 ========
 
-High Dynamic Range Histogram python implementation
+Stratospheric Dynamic Range Histogram python implementation
 
 .. image:: https://badges.gitter.im/Join Chat.svg
    :target: https://gitter.im/HdrHistogram/HdrHistogram
