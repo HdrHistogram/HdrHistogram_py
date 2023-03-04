@@ -140,7 +140,7 @@ Use a python virtual environment if needed.
     pip install hdrhistogram
 
 
-Note that this will require a C compiler to compile small C plugins (related to low level encoding/deconing).
+Note that this will require a C compiler to compile small C plugins (related to low level encoding/decoding).
 Wheel binary packages are not available yet in PyPI (work in progress) but can be built using the python setuptools procedure from the
 git source code (see below).
 
