@@ -190,17 +190,20 @@ static int set_array_entry64(void *src, int index, uint64_t value) {
  # @return the length of the encoded varint stream in bytes
  */
 static PyObject *py_hdr_encode(PyObject *self, PyObject *args) {
-    void *vsrc;       /* l: addressof a ctypes c_uint16, c_uint32 or c_uint64 array */
+    void *vsrc;       /* L: addressof a ctypes c_uint16, c_uint32 or c_uint64 array */
     int max_index;    /* i: encode entries [0..max_index-1] */
     int word_size;    /* i: word size in bytes (2,4,8) for each array element */
-    uint8_t *dest;    /* l: where to encode */
+    uint8_t *dest;    /* L: where to encode */
     int dest_len;     /* i: length of the destination buffer, must be >=(word_size+1)*max_index */
     get_array_entry get_entry;
     int index;
     int write_index;
     PyObject *res;
 
-    if (!PyArg_ParseTuple(args, "liili", &vsrc, &max_index, &word_size, &dest, &dest_len)) {
+    /* "L" (long long) is required for both pointer arguments: on 64-bit Windows
+       (LLP64) sizeof(long) == 4, so heap addresses above 2^31-1 overflow "l".
+       See issue #54 (and #37 for the same fix in py_hdr_decode). */
+    if (!PyArg_ParseTuple(args, "LiiLi", &vsrc, &max_index, &word_size, &dest, &dest_len)) {
         return NULL;
     }
     if (vsrc == NULL) {
@@ -375,13 +378,16 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
  * In case of overflow error the destination array is unmodified.
  */
 static PyObject *py_hdr_add_array(PyObject *self, PyObject *args) {
-    void *vdst;     /* l: address of destination array first entry */
-    void *vsrc;     /* l: address of source array first entry */
+    void *vdst;     /* L: address of destination array first entry */
+    void *vsrc;     /* L: address of source array first entry */
     int max_index;  /* i: entries from 0 to max_index-1 are added */
     int word_size;  /* i: size of each entry in bytes 2,4,8 */
     uint64_t total_count = 0;
 
-    if (!PyArg_ParseTuple(args, "llii", &vdst, &vsrc, &max_index, &word_size)) {
+    /* "L" (long long) is required for both pointer arguments: on 64-bit Windows
+       (LLP64) sizeof(long) == 4, so heap addresses above 2^31-1 overflow "l".
+       See issue #54 (and #37 for the same fix in py_hdr_decode). */
+    if (!PyArg_ParseTuple(args, "LLii", &vdst, &vsrc, &max_index, &word_size)) {
         return NULL;
     }
     if (vsrc == NULL) {
