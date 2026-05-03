@@ -321,6 +321,9 @@ valid-metaclass-classmethod-first-arg=mcs
 # Maximum number of arguments for function / method
 max-args=12
 
+# Maximum number of positional arguments for function / method (pylint 3.x)
+max-positional-arguments=7
+
 # Maximum number of attributes for a class (see R0902).
 max-attributes=32
 
@@ -386,4 +389,4 @@ known-third-party=enchant
 
 # Exceptions that will emit a warning when being caught. Defaults to
 # "Exception"
-overgeneral-exceptions=Exception
+overgeneral-exceptions=builtins.Exception

@@ -1,1 +1,4 @@
 pbr>=1.4
+# Transitive build-time dep, pinned to fix CVE-2024-6345 (RCE in
+# PackageIndex.download) and CVE-2025-47273 (path traversal in PackageIndex).
+setuptools>=78.1.1
