@@ -1,3 +1,6 @@
-pytest>=2.7.2
-pylint>=1.7.1
-pytest-cov>=2.9
+pytest>=8.0.0
+pylint>=3.0.0
+pytest-cov>=5.0.0
+# Transitive (via importlib_metadata), pinned to fix CVE-2024-5569
+# (infinite-loop DoS in zipp.Path).
+zipp>=3.19.1
