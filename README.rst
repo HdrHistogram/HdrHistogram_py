@@ -26,7 +26,7 @@ library:
 - Text file histogram log writer and log reader (.hlog file)
 - Dump histogram in plot-friendly percentile table (.hgrm format)
 - Encoding and decoding Hdr Histogram "histoblobs" (HdrHistogram V2 format only, V1 and V0 not supported)
-- supports python 3.x (0.9.2 is the latest release supporting python 2.7)
+- supports Python 3.10, 3.11, 3.12, 3.13 and 3.14 (0.9.2 is the latest release supporting python 2.7)
 
 
 Histogram V2 format encoding inter-operability with Java and C versions verified through unit test code.
@@ -128,7 +128,7 @@ Installation
 ------------
 Pre-requisites:
 
-Make sure you have python 3.x, and pip installed
+Make sure you have Python 3.10 or later, and pip installed
 
 Binary installation
 ^^^^^^^^^^^^^^^^^^^
@@ -320,7 +320,7 @@ Example of run on Linux:
 
    # pytest -s -k test_cod_perf --runperf
    =============================================================================== test session starts ================================================================================
-   platform linux -- Python 3.6.8, pytest-6.0.1, py-1.9.0, pluggy-0.13.1
+   platform linux -- Python 3.13.3, pytest-8.3.5, pluggy-1.5.0
    rootdir: /root/HdrHistogram_py, configfile: tox.ini
    collected 39 items / 38 deselected / 1 selected
 
@@ -379,7 +379,7 @@ And for decoding:
 
    # pytest -s -k test_dec_perf --runperf
    =============================================================================== test session starts ================================================================================
-   platform linux -- Python 3.6.8, pytest-6.0.1, py-1.9.0, pluggy-0.13.1
+   platform linux -- Python 3.13.3, pytest-8.3.5, pluggy-1.5.0
    rootdir: /root/HdrHistogram_py, configfile: tox.ini
    collected 39 items / 38 deselected / 1 selected
 

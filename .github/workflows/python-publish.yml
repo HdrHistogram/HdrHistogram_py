@@ -33,7 +33,7 @@ jobs:
           # Build wheels only for supported (non-EOL) CPython versions.
           # Keep this list in sync with the python_requires in setup.cfg
           # and the tox.yml test matrix.
-          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
 
       - uses: actions/upload-artifact@v4
         with:
