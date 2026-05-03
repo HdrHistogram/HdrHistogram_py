@@ -23,18 +23,11 @@ limitations under the License.
 #include <stdlib.h>
 #include <limits.h>
 
-#ifdef _MSC_VER
-typedef __int8 int8_t;
-typedef unsigned __int8 uint8_t;
-typedef __int16 int16_t;
-typedef unsigned __int16 uint16_t;
-typedef __int32 int32_t;
-typedef unsigned __int32 uint32_t;
-typedef __int64 int64_t;
-typedef unsigned __int64 uint64_t;
-#else
+/* <stdint.h> is part of C99 and ships with MSVC since Visual Studio 2010,
+   which predates every Python version this package supports. We need it
+   for `uintptr_t` (used to cast 64-bit address args back to `void *`
+   without sign-extension warnings on ILP32 hosts). */
 #include <stdint.h>
-#endif
 
 /* max number of bytes to encode a 64-bit value in LEB128 based on the word size */
 #define MAX_BYTES_LEB128(word_size) (word_size + 1)
@@ -190,19 +183,32 @@ static int set_array_entry64(void *src, int index, uint64_t value) {
  # @return the length of the encoded varint stream in bytes
  */
 static PyObject *py_hdr_encode(PyObject *self, PyObject *args) {
-    void *vsrc;       /* l: addressof a ctypes c_uint16, c_uint32 or c_uint64 array */
-    int max_index;    /* i: encode entries [0..max_index-1] */
-    int word_size;    /* i: word size in bytes (2,4,8) for each array element */
-    uint8_t *dest;    /* l: where to encode */
-    int dest_len;     /* i: length of the destination buffer, must be >=(word_size+1)*max_index */
+    /* Pointer arguments are parsed into `long long` (8 bytes, always) and
+       then cast to the real pointer type. Using "l" (long) here would
+       overflow on 64-bit Windows (LLP64, sizeof(long) == 4) for any heap
+       address above 2**31 - 1; using "L" with a `void *` directly would
+       overflow the local variable on ILP32 platforms (32-bit Linux/Windows)
+       where sizeof(void *) == 4 < sizeof(long long). The intermediate
+       `long long` keeps both 32-bit and 64-bit hosts correct. See #54. */
+    long long vsrc_addr;  /* L: addressof a ctypes c_uint16/c_uint32/c_uint64 array */
+    long long dest_addr;  /* L: addressof a ctypes destination buffer */
+    void *vsrc;
+    uint8_t *dest;
+    int max_index;        /* i: encode entries [0..max_index-1] */
+    int word_size;        /* i: word size in bytes (2,4,8) for each array element */
+    int dest_len;         /* i: length of dest buffer, must be >=(word_size+1)*max_index */
     get_array_entry get_entry;
     int index;
     int write_index;
     PyObject *res;
 
-    if (!PyArg_ParseTuple(args, "liili", &vsrc, &max_index, &word_size, &dest, &dest_len)) {
+    if (!PyArg_ParseTuple(args, "LiiLi",
+                          &vsrc_addr, &max_index, &word_size,
+                          &dest_addr, &dest_len)) {
         return NULL;
     }
+    vsrc = (void *)(uintptr_t)vsrc_addr;
+    dest = (uint8_t *)(uintptr_t)dest_addr;
     if (vsrc == NULL) {
         PyErr_SetString(PyExc_ValueError, "NULL source array");
         return NULL;
@@ -375,15 +381,27 @@ static PyObject *py_hdr_decode(PyObject *self, PyObject *args) {
  * In case of overflow error the destination array is unmodified.
  */
 static PyObject *py_hdr_add_array(PyObject *self, PyObject *args) {
-    void *vdst;     /* l: address of destination array first entry */
-    void *vsrc;     /* l: address of source array first entry */
-    int max_index;  /* i: entries from 0 to max_index-1 are added */
-    int word_size;  /* i: size of each entry in bytes 2,4,8 */
+    /* Pointer arguments are parsed into `long long` (8 bytes, always) and
+       then cast to the real pointer type. Using "l" (long) here would
+       overflow on 64-bit Windows (LLP64, sizeof(long) == 4) for any heap
+       address above 2**31 - 1; using "L" with a `void *` directly would
+       overflow the local variable on ILP32 platforms (32-bit Linux/Windows)
+       where sizeof(void *) == 4 < sizeof(long long). The intermediate
+       `long long` keeps both 32-bit and 64-bit hosts correct. See #54. */
+    long long vdst_addr;  /* L: address of destination array first entry */
+    long long vsrc_addr;  /* L: address of source array first entry */
+    void *vdst;
+    void *vsrc;
+    int max_index;        /* i: entries from 0 to max_index-1 are added */
+    int word_size;        /* i: size of each entry in bytes 2,4,8 */
     uint64_t total_count = 0;
 
-    if (!PyArg_ParseTuple(args, "llii", &vdst, &vsrc, &max_index, &word_size)) {
+    if (!PyArg_ParseTuple(args, "LLii",
+                          &vdst_addr, &vsrc_addr, &max_index, &word_size)) {
         return NULL;
     }
+    vdst = (void *)(uintptr_t)vdst_addr;
+    vsrc = (void *)(uintptr_t)vsrc_addr;
     if (vsrc == NULL) {
         PyErr_SetString(PyExc_ValueError, "NULL source array");
         return NULL;
