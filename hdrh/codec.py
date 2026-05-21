@@ -79,6 +79,7 @@ class HdrHistogramSettingsException(Exception):
 # External encoding header
 class ExternalHeader(BigEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("cookie", c_uint),
         ("length", c_uint)]
@@ -89,6 +90,7 @@ ext_header_size = ctypes.sizeof(ExternalHeader)
 # Header for the zlib compressed part
 class PayloadHeader(BigEndianStructure):
     _pack_ = 1
+    _layout_ = "ms"
     _fields_ = [
         ("cookie", c_uint),
         ("payload_len", c_uint),
