@@ -482,6 +482,33 @@ def test_hist_codec():
         check_hist_codec_b64(word_size, False)
 
 @pytest.mark.codec
+def test_hist_codec_raw_v2_deflate_header():
+    rust_compressed = (
+        b"\x1c\x84\x93\x14\x00\x00\x00\x1fx\x9c\x93i\x99,"
+        b"\xcc\xc0\xc0\xc0\xcc\x00\x010\x9a\x11J3\xd9\x7f"
+        b"\x800\xfe32\x01\x00E\x0c\x03\x81"
+    )
+    histogram = HdrHistogram.decode(rust_compressed, b64_wrap=False)
+    assert histogram.get_total_count() == 1
+
+@pytest.mark.codec
+def test_hist_codec_raw_v2_uncompressed():
+    rust_uncompressed = (
+        b"\x1c\x84\x93\x13\x00\x00\x00\x03\x00\x00\x00\x00"
+        b"\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x01"
+        b"\x00\x00\x00\x00\x00\x00\x00\x02?\xf0\x00\x00"
+        b"\x00\x00\x00\x00\xff\x01\x02"
+    )
+    histogram = HdrHistogram.decode(rust_uncompressed, b64_wrap=False)
+    assert histogram.get_total_count() == 1
+
+@pytest.mark.codec
+def test_hist_codec_base64_v2_uncompressed():
+    rust_uncompressed = "HISTEwAAAAMAAAAAAAAAAwAAAAAAAAABAAAAAAAAAAI/8AAAAAAAAP8BAg=="
+    histogram = HdrHistogram.decode(rust_uncompressed)
+    assert histogram.get_total_count() == 1
+
+@pytest.mark.codec
 def test_hist_codec_partial():
     histogram = HdrHistogram(LOWEST, WRK2_MAX_LATENCY, SIGNIFICANT)
 
