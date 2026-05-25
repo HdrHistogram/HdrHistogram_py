@@ -147,9 +147,10 @@ class HistogramLogReader():
 
     def __init__(self, input_file_name, reference_histogram):
         '''Constructs a new HistogramLogReader that produces intervals read
-        from the specified file name.
+        from the specified file name or file-like object.
         Params:
-            input_file_name The name of the file to read from
+            input_file_name The name of the file to read from, or a file-like
+                            object with a readline() method
             reference_histogram a histogram instance used as a reference to create
                                 new instances for all subsequent decoded interval
                                 histograms
@@ -158,7 +159,11 @@ class HistogramLogReader():
         self.observed_start_time = False
         self.base_time_sec = 0.0
         self.observed_base_time = False
-        self.input_file = open(input_file_name, "r", encoding="utf-8") # pylint: disable=consider-using-with
+        self.input_file = input_file_name
+        self._close_input_file = False
+        if not hasattr(input_file_name, 'readline'):
+            self.input_file = open(input_file_name, "r", encoding="utf-8") # pylint: disable=consider-using-with
+            self._close_input_file = True
         self.reference_histogram = reference_histogram
 
     def get_start_time_sec(self):
@@ -171,6 +176,12 @@ class HistogramLogReader():
             latest Start Time found in the file (or 0.0 if non found)
         '''
         return self.start_time_sec
+
+    def _readline(self):
+        line = self.input_file.readline()
+        if isinstance(line, bytes):
+            line = line.decode("utf-8")
+        return line
 
     def _decode_next_interval_histogram(self,
                                         dest_histogram,
@@ -218,7 +229,7 @@ class HistogramLogReader():
             ValueError if there is a syntax error in one of the float fields
         '''
         while 1:
-            line = self.input_file.readline()
+            line = self._readline()
             if not line:
                 return None
             if line[0] == '#':
@@ -402,4 +413,5 @@ class HistogramLogReader():
                                                     absolute)
 
     def close(self):
-        self.input_file.close()
+        if self._close_input_file:
+            self.input_file.close()
