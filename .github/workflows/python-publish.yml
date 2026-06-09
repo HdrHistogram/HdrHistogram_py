@@ -80,5 +80,8 @@ jobs:
 
       # Pinned to an exact tag (rather than the moving release/v1) to lock
       # down the action used for the actual PyPI upload via Trusted
-      # Publishing.
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
+      # Publishing. v1.12.4+ is required: earlier versions bundle a twine/
+      # pkginfo too old to parse Metadata-Version 2.4 wheels (emitted by
+      # current setuptools), failing with "Metadata is missing required
+      # fields: Name, Version".
+      - uses: pypa/gh-action-pypi-publish@v1.14.0
