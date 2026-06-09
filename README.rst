@@ -4,11 +4,8 @@ Overview
 
 High Dynamic Range Histogram python implementation
 
-.. image:: https://badges.gitter.im/Join Chat.svg
-   :target: https://gitter.im/HdrHistogram/HdrHistogram
-
-.. image:: https://travis-ci.org/HdrHistogram/HdrHistogram_py.svg?branch=master
-   :target: https://travis-ci.org/HdrHistogram/HdrHistogram_py
+.. image:: https://github.com/HdrHistogram/HdrHistogram_py/actions/workflows/tox.yml/badge.svg?branch=master
+   :target: https://github.com/HdrHistogram/HdrHistogram_py/actions/workflows/tox.yml
 
 
 This repository contains a port to python of most of the original Java HDR Histogram
@@ -140,9 +137,11 @@ Use a python virtual environment if needed.
     pip install hdrhistogram
 
 
-Note that this will require a C compiler to compile small C plugins (related to low level encoding/decoding).
-Wheel binary packages are not available yet in PyPI (work in progress) but can be built using the python setuptools procedure from the
-git source code (see below).
+Prebuilt binary wheels are published to PyPI for Linux, macOS and Windows across the supported CPython
+versions (3.10 to 3.14), so ``pip`` will normally install without needing a local build.
+If no matching wheel is available for your platform, pip falls back to building from the source
+distribution, which requires a C compiler (for the small C extension that handles the low level
+encoding/decoding). You can also build from the git source using the setuptools procedure below.
 
 
 Source code installation Package build and Unit Testing
@@ -160,39 +159,31 @@ Install the unit test automation harness tox and hdrhistogram from github:
     git clone https://github.com/HdrHistogram/HdrHistogram_py.git
     cd HdrHistogram_py
 
-Running tox will execute the following targets:
+Running tox will execute the following environments (see ``tox.ini``):
 
-- pep8/flake8 for syntax and indentation checking
-- python unit test code
-- pylint
+- ``py310`` to ``py314``: the python unit test suite with coverage, under each supported Python version installed on the host
+- ``lint``: pylint static analysis
 
 Just run tox without any argument (the first run will take more time as tox will setup the execution environment and download the necessary packages):
 
 .. code::
 
     $ tox
-    GLOB sdist-make: /openstack/pyhdr/HdrHistogram_py/setup.py
-    31 passed, 2 skipped in 5.14 seconds
-    py3 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    py3 runtests: PYTHONHASHSEED='4015036329'
-    py3 runtests: commands[0] | py.test -q -s --basetemp=/openstack/pyhdr/HdrHistogram_py/.tox/py3/tmp
-    s......................ss.........
-    31 passed, 3 skipped in 5.11 seconds
-    pep8 inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    pep8 runtests: PYTHONHASHSEED='4015036329'
-    pep8 runtests: commands[0] | flake8 hdrh test
-    lint inst-nodeps: /openstack/pyhdr/HdrHistogram_py/.tox/dist/hdrhistogram-0.5.2.zip
-    lint installed: astroid==1.5.3,backports.functools-lru-cache==1.4,configparser==3.5.0,enum34==1.1.6,flake8==3.3.0,hdrhistogram==0.5.2,isort==4.2.15,lazy-object-proxy==1.3.1,mccabe==0.6.1,pbr==3.1.1,py==1.4.34,pycodestyle==2.3.1,pyflakes==1.5.0,pylint==1.7.1,pytest==3.1.2,singledispatch==3.4.0.3,six==1.10.0,wrapt==1.10.10
-    lint runtests: PYTHONHASHSEED='4015036329'
-    lint runtests: commands[0] | pylint --rcfile pylint.rc hdrh test
+    ...
+    py313: commands[0]> pytest --cov=hdrh --cov-report=term-missing -vv test
+    ...
+    ====================== 39 passed in 5.11s ======================
+    lint: commands[0]> pylint --rcfile pylint.rc hdrh test
 
     --------------------------------------------------------------------
-    Your code has been rated at 10.00/10 (previous run: 10.00/10, +0.00)
+    Your code has been rated at 10.00/10
 
-    ________________________________________________________________ summary ________________________________________________________________
-      py3: commands succeeded
-      pep8: commands succeeded
-      lint: commands succeeded
+      py310: OK
+      py311: OK
+      py312: OK
+      py313: OK
+      py314: OK
+      lint: OK
       congratulations :)
 
 Display percentile table (.hgrm) from a histoblob  (dump_hdrh)
@@ -483,8 +474,11 @@ small pbr python package which takes care of the versioning (among other things)
 Publishing a New Release to PyPI
 --------------------------------
 
-To create a new release, apply a new release tag then create a new Release using github (this requires right permission). 
-The github CI will build the distributions and push to PyPI.
+To create a new release, apply a new release tag then create a new Release using GitHub (this requires the
+appropriate permissions). Publishing a Release triggers the ``Upload Python Package`` GitHub Actions workflow
+(``.github/workflows/python-publish.yml``), which builds the source distribution and binary wheels for Linux,
+macOS and Windows (CPython 3.10 to 3.14) and uploads them to PyPI using Trusted Publishing (no API token
+required).
 
 
 Licensing
