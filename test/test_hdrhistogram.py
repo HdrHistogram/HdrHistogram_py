@@ -641,6 +641,18 @@ def test_jHiccup_v2_log():
         log_reader.close()
 
 
+@pytest.mark.log
+def test_jHiccup_v2_log_file_object():
+    accumulated_histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
+    with open(JHICCUP_V2_LOG_NAME, 'rb') as hdr_log:
+        log_reader = HistogramLogReader(hdr_log, accumulated_histogram)
+        decoded_histogram = log_reader.get_next_interval_histogram()
+        assert decoded_histogram
+        assert decoded_histogram.get_word_size() == 8
+        log_reader.close()
+        assert not hdr_log.closed
+
+
 TAGGED_V2_LOG = 'test/tagged-Log.logV2.hlog'
 @pytest.mark.log
 def test_tagged_v2_log():
