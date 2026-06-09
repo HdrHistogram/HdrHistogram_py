@@ -79,4 +79,4 @@ jobs:
       # Pinned to an exact tag (rather than the moving release/v1) to lock
       # down the action used for the actual PyPI upload via Trusted
       # Publishing.
-      - uses: pypa/gh-action-pypi-publish@v1.10.3
+      - uses: pypa/gh-action-pypi-publish@v1.13.0
