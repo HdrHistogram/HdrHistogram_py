@@ -22,9 +22,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macos-13 = Intel (x86_64), macos-14 = Apple silicon (arm64).
-        # macos-11 was removed by GitHub on 2024-06-28.
-        os: [ubuntu-24.04, windows-2022, macos-13, macos-14]
+        # macos-14 = Apple silicon (arm64). Intel macOS (macos-13) is
+        # dropped: that runner pool is being wound down by GitHub and
+        # queues unreliably, blocking releases. Intel macOS users build
+        # from the sdist. macos-11 was removed by GitHub on 2024-06-28.
+        os: [ubuntu-24.04, windows-2022, macos-14]
 
     steps:
       - uses: actions/checkout@v4
