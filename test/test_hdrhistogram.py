@@ -25,6 +25,7 @@ import cProfile
 import datetime
 import io
 import os
+import pickle
 import struct
 import zlib
 import sys
@@ -84,6 +85,26 @@ def test_empty_histogram():
     assert histogram.get_max_value() == 0
     assert histogram.get_mean_value() == 0
     assert histogram.get_stddev() == 0
+
+@pytest.mark.basic
+def test_pickle_round_trip():
+    histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT, word_size=4,
+                             b64_wrap=False)
+    histogram.record_value(1, 3)
+    histogram.record_value(2000, 4)
+    histogram.set_start_time_stamp(123)
+    histogram.set_end_time_stamp(456)
+    histogram.set_tag('pickle')
+
+    restored = pickle.loads(pickle.dumps(histogram))
+
+    assert restored is not histogram
+    assert restored.equals(histogram)
+    assert restored.get_word_size() == histogram.get_word_size()
+    assert restored.b64_wrap == histogram.b64_wrap
+    assert restored.get_start_time_stamp() == 123
+    assert restored.get_end_time_stamp() == 456
+    assert restored.get_tag() == 'pickle'
 
 @pytest.mark.basic
 def test_large_numbers():
