@@ -77,6 +77,37 @@ def test_basic():
     assert histogram.get_count_at_sub_bucket(0, 0) == 0
     assert histogram.equals(histogram)
 
+@pytest.mark.iterators
+@pytest.mark.parametrize('lowest,highest,figures', [(1, 4095, 1), (8, 32767, 2)])
+@pytest.mark.parametrize('word_size', [2, 4, 8])
+def test_iterators_include_final_counter(lowest, highest, figures, word_size):
+    """The final allocated counter contributes to iteration and statistics."""
+    histogram = HdrHistogram(lowest, highest, figures, word_size=word_size)
+    last_value = histogram.get_value_from_index(histogram.counts_len - 1)
+    assert last_value <= highest
+    assert histogram.record_value(0)
+    assert histogram.record_value(last_value, 3)
+
+    recorded = [(item.value_iterated_to, item.count_added_in_this_iter_step)
+                for item in histogram.get_recorded_iterator()]
+    assert recorded == [(histogram.get_highest_equivalent_value(0), 1),
+                        (histogram.get_highest_equivalent_value(last_value), 3)]
+    all_values = [(item.value_iterated_to, item.count_at_value_iterated_to)
+                  for item in histogram.get_all_values_iterator()]
+    assert len(all_values) == histogram.counts_len
+    assert all_values[-1] == (histogram.get_highest_equivalent_value(last_value), 3)
+
+    # Compute the expected quantized moments independently from the iterators.
+    zero_midpoint = (histogram.get_lowest_equivalent_value(0) +
+                     histogram.get_highest_equivalent_value(0) + 1) // 2
+    last_midpoint = (histogram.get_lowest_equivalent_value(last_value) +
+                     histogram.get_highest_equivalent_value(last_value) + 1) // 2
+    expected_mean = (zero_midpoint + 3 * last_midpoint) / 4
+    expected_stddev = (((zero_midpoint - expected_mean) ** 2 +
+                       3 * (last_midpoint - expected_mean) ** 2) / 4) ** 0.5
+    assert histogram.get_mean_value() == expected_mean
+    assert histogram.get_stddev() == pytest.approx(expected_stddev)
+
 @pytest.mark.basic
 def test_empty_histogram():
     histogram = HdrHistogram(LOWEST, HIGHEST, SIGNIFICANT)
