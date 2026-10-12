@@ -187,7 +187,7 @@ class AllValuesIterator(AbstractHdrIterator):
     def has_next(self):
         if self.total_count != self.histogram.total_count:
             raise HdrConcurrentModificationException()
-        return self.current_index < self.histogram.counts_len - 1
+        return self.current_index < self.histogram.counts_len
 
 class RecordedIterator(AllValuesIterator):
     '''Provide a means of iterating through all recorded histogram values
