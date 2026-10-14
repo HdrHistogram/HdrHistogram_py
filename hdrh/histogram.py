@@ -137,6 +137,56 @@ class HdrHistogram():
         # no tag by default
         self.tag = None
 
+    def __getstate__(self):
+        '''Return a pickle-safe representation of this histogram.
+
+        The live encoder owns ctypes-backed count storage, so serializing the
+        default instance dictionary is not portable across pickle round trips.
+        '''
+        counts = []
+        for index in range(self.counts_len):
+            count = self.get_count_at_index(index)
+            if count:
+                counts.append((index, count))
+
+        return {
+            'lowest_trackable_value': self.lowest_trackable_value,
+            'highest_trackable_value': self.highest_trackable_value,
+            'significant_figures': self.significant_figures,
+            'word_size': self.word_size,
+            'b64_wrap': self.b64_wrap,
+            'int_to_double_conversion_ratio': self.int_to_double_conversion_ratio,
+            'min_value': self.min_value,
+            'max_value': self.max_value,
+            'total_count': self.total_count,
+            'start_time_stamp_msec': self.start_time_stamp_msec,
+            'end_time_stamp_msec': self.end_time_stamp_msec,
+            'tag': self.tag,
+            'counts': counts,
+        }
+
+    def __setstate__(self, state):
+        '''Restore a histogram serialized by __getstate__.'''
+        self.__init__(state['lowest_trackable_value'],
+                      state['highest_trackable_value'],
+                      state['significant_figures'],
+                      word_size=state.get('word_size', 8),
+                      b64_wrap=state.get('b64_wrap', True))
+
+        for index, count in state.get('counts', ()):
+            self.counts[index] = count
+
+        self.int_to_double_conversion_ratio = \
+            state.get('int_to_double_conversion_ratio', 1.0)
+        self.encoder.payload.payload.conversion_ratio_bits = \
+            self.int_to_double_conversion_ratio
+        self.min_value = state.get('min_value', sys.maxsize)
+        self.max_value = state.get('max_value', 0)
+        self.total_count = state.get('total_count', 0)
+        self.start_time_stamp_msec = state.get('start_time_stamp_msec', 0)
+        self.end_time_stamp_msec = state.get('end_time_stamp_msec', 0)
+        self.tag = state.get('tag')
+
     def _clz(self, value):
         """calculate the leading zeros, equivalent to C __builtin_clzll()
         value in hex:
