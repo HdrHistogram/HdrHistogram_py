@@ -46,8 +46,10 @@ from pyhdrh import decode     # pylint: disable=no-name-in-module,import-error
 from hdrh.histogram import HdrHistogram
 from hdrh.log import HistogramLogWriter
 from hdrh.log import HistogramLogReader
+from hdrh.codec import ExternalHeader
 from hdrh.codec import HdrPayload
 from hdrh.codec import HdrCookieException
+from hdrh.codec import PayloadHeader
 from hdrh.dump import dump
 
 
@@ -63,6 +65,11 @@ SIGNIFICANT = 3
 TEST_VALUE_LEVEL = 4
 INTERVAL = 10000
 BITNESS = python_bitness()
+
+@pytest.mark.codec
+def test_codec_headers_use_explicit_packed_layout():
+    assert ExternalHeader._layout_ == "ms"
+    assert PayloadHeader._layout_ == "ms"
 
 @pytest.mark.basic
 def test_basic():
