@@ -113,7 +113,7 @@ class HdrPayload():
     '''A class that wraps the ctypes big endian struct that will hold the
     histogram wire format content (including the counters).
     '''
-    def __init__(self, word_size, counts_len=0, compressed_payload=None):
+    def __init__(self, word_size, counts_len=0, compressed_payload=None, raw_payload=None):
         '''Two ways to use this class:
         - for an empty histogram (pass counts_len>0 and compressed_payload=None)
         - for a decoded histogram (counts_len=0 and compressed_payload!=None)
@@ -128,6 +128,8 @@ class HdrPayload():
                 Caller must then invoke init_counts to pass in counts_len so that the
                 counts array can be updated from the decoded varint buffer
                 None if no compressed payload is to be associated to this instance
+            raw_payload (string) an uncompressed V2 payload that includes the
+                payload header and encoded counts
         '''
         self.word_size = word_size
         self.counts_len = counts_len
@@ -141,6 +143,8 @@ class HdrPayload():
             raise ValueError('Invalid word size')
         if compressed_payload:
             self._decompress(compressed_payload)
+        elif raw_payload:
+            self._decode_payload(raw_payload)
         elif counts_len:
             self.payload = PayloadHeader()
             self.payload.cookie = get_encoding_cookie()
@@ -169,6 +173,45 @@ class HdrPayload():
     def get_counts(self):
         return self.counts
 
+    def _decode_payload(self, payload_data):
+        '''Decode an uncompressed payload into this payload wrapper.
+        Note that the buffer is saved in self._data and the counts array is not
+        yet allocated.
+
+        Args:
+            payload_data (string) an uncompressed payload
+        Exception:
+            HdrCookieException:
+                the payload has an invalid cookie
+            HdrLengthException:
+                the decompressed size is too small for the HdrPayload structure
+                or is not aligned or is too large for the passed payload class
+            HdrHistogramSettingsException:
+                mismatch in the significant figures, lowest and highest
+                         trackable value
+        '''
+        # make sure this instance is pristine
+        if self._data:
+            raise RuntimeError('Cannot decode to an instance with payload')
+        # Here it is important to keep a reference to the decompressed
+        # string so that it does not get garbage collected
+        self._data = payload_data
+        len_data = len(self._data)
+
+        counts_size = len_data - payload_header_size
+        if payload_header_size > counts_size > MAX_COUNTS_SIZE:
+            raise HdrLengthException('Invalid size:' + str(len_data))
+
+        # copy the first bytes for the header
+        self.payload = PayloadHeader.from_buffer_copy(self._data)
+
+        cookie = self.payload.cookie
+        if get_cookie_base(cookie) != V2_ENCODING_COOKIE_BASE:
+            raise HdrCookieException('Invalid cookie: %x' % cookie)
+        word_size = get_word_size_in_bytes_from_cookie(cookie)
+        if word_size != V2_MAX_WORD_SIZE_IN_BYTES:
+            raise HdrCookieException('Invalid V2 cookie: %x' % cookie)
+
     def _decompress(self, compressed_payload):
         '''Decompress a compressed payload into this payload wrapper.
         Note that the decompressed buffer is saved in self._data and the
@@ -186,27 +229,7 @@ class HdrPayload():
                 mismatch in the significant figures, lowest and highest
                          trackable value
         '''
-        # make sure this instance is pristine
-        if self._data:
-            raise RuntimeError('Cannot decompress to an instance with payload')
-        # Here it is important to keep a reference to the decompressed
-        # string so that it does not get garbage collected
-        self._data = zlib.decompress(compressed_payload)
-        len_data = len(self._data)
-
-        counts_size = len_data - payload_header_size
-        if payload_header_size > counts_size > MAX_COUNTS_SIZE:
-            raise HdrLengthException('Invalid size:' + str(len_data))
-
-        # copy the first bytes for the header
-        self.payload = PayloadHeader.from_buffer_copy(self._data)
-
-        cookie = self.payload.cookie
-        if get_cookie_base(cookie) != V2_ENCODING_COOKIE_BASE:
-            raise HdrCookieException('Invalid cookie: %x' % cookie)
-        word_size = get_word_size_in_bytes_from_cookie(cookie)
-        if word_size != V2_MAX_WORD_SIZE_IN_BYTES:
-            raise HdrCookieException('Invalid V2 cookie: %x' % cookie)
+        self._decode_payload(zlib.decompress(compressed_payload))
 
     def compress(self, counts_limit):
         '''Compress this payload instance
@@ -339,18 +362,39 @@ class HdrHistogramEncoder():
                 raise HdrLengthException('Base64 decoded message too short')
 
             header = ExternalHeader.from_buffer_copy(b64decode)
-            if get_cookie_base(header.cookie) != V2_COMPRESSION_COOKIE_BASE:
+            cookie_base = get_cookie_base(header.cookie)
+            if cookie_base == V2_COMPRESSION_COOKIE_BASE:
+                if header.length != b64dec_len - ext_header_size:
+                    raise HdrLengthException('Decoded length=%d buffer length=%d' %
+                                             (header.length, b64dec_len - ext_header_size))
+                # this will result in a copy of the compressed payload part
+                # could not find a way to do otherwise since zlib.decompress()
+                # expects a string (and does not like a buffer or a memoryview object)
+                cpayload = b64decode[ext_header_size:]
+                raw_payload = None
+            elif cookie_base == V2_ENCODING_COOKIE_BASE:
+                raw_payload = b64decode
+                cpayload = None
+            else:
                 raise HdrCookieException()
-            if header.length != b64dec_len - ext_header_size:
-                raise HdrLengthException('Decoded length=%d buffer length=%d' %
-                                         (header.length, b64dec_len - ext_header_size))
-            # this will result in a copy of the compressed payload part
-            # could not find a way to do otherwise since zlib.decompress()
-            # expects a string (and does not like a buffer or a memoryview object)
-            cpayload = b64decode[ext_header_size:]
         else:
             cpayload = encoded_histogram
-        hdr_payload = HdrPayload(8, compressed_payload=cpayload)
+            raw_payload = None
+            encoded_len = len(encoded_histogram)
+            if isinstance(encoded_histogram, (bytes, bytearray)) and encoded_len >= ext_header_size:
+                header = ExternalHeader.from_buffer_copy(encoded_histogram)
+                cookie_base = get_cookie_base(header.cookie)
+                if cookie_base == V2_COMPRESSION_COOKIE_BASE:
+                    if header.length != encoded_len - ext_header_size:
+                        raise HdrLengthException('Decoded length=%d buffer length=%d' %
+                                                 (header.length, encoded_len - ext_header_size))
+                    cpayload = encoded_histogram[ext_header_size:]
+                elif cookie_base == V2_ENCODING_COOKIE_BASE:
+                    raw_payload = encoded_histogram
+        if raw_payload:
+            hdr_payload = HdrPayload(8, raw_payload=raw_payload)
+        else:
+            hdr_payload = HdrPayload(8, compressed_payload=cpayload)
         return hdr_payload
 
     def add(self, other_encoder):
